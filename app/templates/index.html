@@ -103,11 +103,14 @@
                 <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
                     <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
                          <div class="flex space-x-2">
-                             <select id="filterCat" onchange="masterFilter()" class="border text-[10px] p-2 rounded-lg font-black uppercase">
+                             <select id="filterCat" onchange="toggleSubFilters(); masterFilter();" class="border text-[10px] p-2 rounded-lg font-black uppercase">
                                  <option value="">All Categories</option>
                                  <option value="Stationery">Stationery</option>
                                  <option value="Book">Course Books</option>
+                                 <option value="Notebook">Notebooks</option>
                              </select>
+                             <input type="text" id="filterClass" onkeyup="masterFilter()" placeholder="Filter Class..." class="hidden border text-[10px] p-2 rounded-lg font-bold uppercase w-24">
+                             <input type="text" id="filterSubject" onkeyup="masterFilter()" placeholder="Filter Subject..." class="hidden border text-[10px] p-2 rounded-lg font-bold uppercase w-32">
                          </div>
                     </div>
                     <table class="w-full text-left">
@@ -201,12 +204,31 @@
             masterFilter(); updateAlerts();
         }
 
+        function toggleSubFilters() {
+            const cat = document.getElementById('filterCat').value;
+            const showSub = (cat === 'Book' || cat === 'Notebook');
+            document.getElementById('filterClass').classList.toggle('hidden', !showSub);
+            document.getElementById('filterSubject').classList.toggle('hidden', !showSub);
+            if(!showSub) {
+                document.getElementById('filterClass').value = "";
+                document.getElementById('filterSubject').value = "";
+            }
+        }
+
         function masterFilter() {
             const q = document.getElementById('globalSearch').value.toLowerCase();
             const cat = document.getElementById('filterCat').value;
+            const cls = document.getElementById('filterClass').value.toLowerCase();
+            const sub = document.getElementById('filterSubject').value.toLowerCase();
+            
             filteredData = inventory.filter(p => {
                 const searchStr = `${p.name} ${p.tag} ${p.student_class} ${p.category}`.toLowerCase();
-                return searchStr.includes(q) && (cat === "" || p.category === cat);
+                const matchQuery = searchStr.includes(q);
+                const matchCat = (cat === "" || p.category === cat);
+                const matchClass = (cls === "" || (p.student_class && p.student_class.toLowerCase().includes(cls)));
+                const matchSub = (sub === "" || (p.subject && p.subject.toLowerCase().includes(sub)));
+                
+                return matchQuery && matchCat && matchClass && matchSub;
             });
             currentPage = 1; renderAll();
         }
@@ -244,6 +266,15 @@
             document.getElementById('stationeryFields').classList.toggle('hidden-field', cat !== 'Stationery');
             document.getElementById('statItemNameField').classList.toggle('hidden-field', cat !== 'Stationery');
             document.getElementById('bookFields').classList.toggle('hidden-field', cat === 'Stationery');
+            
+            // Adjust placeholders based on selection
+            if(cat === 'Notebook') {
+                document.getElementById('bookClass').placeholder = "Class (Notebook)";
+                document.getElementById('bookName').placeholder = "Notebook Type / Subject";
+            } else {
+                document.getElementById('bookClass').placeholder = "Class";
+                document.getElementById('bookName').placeholder = "Subject";
+            }
             checkDuplicate();
         }
 
