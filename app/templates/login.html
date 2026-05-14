@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - EduStock Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-indigo-900 h-screen flex items-center justify-center">
+    <div class="bg-white p-10 rounded-3xl shadow-2xl w-96">
+        <h1 class="text-3xl font-black text-center text-indigo-900 mb-2">EDUSTOCK</h1>
+        <p class="text-center text-gray-500 mb-8 font-bold">POS Login System</p>
+        
+        <form action="/login" method="post" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase">Username</label>
+                <input type="text" name="username" class="w-full border-2 p-3 rounded-xl focus:border-indigo-500 outline-none" required>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase">Password</label>
+                <input type="password" name="password" class="w-full border-2 p-3 rounded-xl focus:border-indigo-500 outline-none" required>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black hover:bg-indigo-700 transition">ENTRANCE</button>
+        </form>
+        <p id="msg" class="text-red-500 text-center mt-4 text-sm font-bold"></p>
+    </div>
+</body>
+</html>
