@@ -12,7 +12,6 @@ DB_PATH = "app/database/school_store.db"
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
-    # Row factory ensures we get dictionaries instead of tuples
     conn.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     return conn
 
@@ -73,12 +72,10 @@ async def smart_add(
     p_price: float = Form(...), 
     s_price: float = Form(...), 
     stock: int = Form(...),
-    force_new: str = Form("false") # JavaScript sends strings
+    force_new: str = Form("false")
 ):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db(); cursor = conn.cursor()
-    
-    # Handle JS boolean string
     is_force_new = True if force_new.lower() == "true" else False
 
     if mode == 'update' and prod_id and not is_force_new:
@@ -101,8 +98,26 @@ async def list_inv(request: Request):
     conn.close()
     return data
 
+@app.get("/api/sales-recent")
+async def recent_sales(request: Request):
+    if not is_logged_in(request): raise HTTPException(status_code=401)
+    conn = get_db()
+    data = conn.execute("""
+        SELECT s.id, s.receipt_number, s.total_amount, s.payment_status, s.timestamp
+        FROM sales s ORDER BY s.id DESC LIMIT 5
+    """).fetchall()
+    conn.close()
+    return data
+
 @app.post("/api/checkout")
-async def checkout(request: Request, p_name:str=Form(...), p_phone:str=Form(...), items_json:str=Form(...), total:float=Form(...), status:str=Form(...)):
+async def checkout(
+    request: Request, 
+    p_name: str = Form(...), 
+    p_phone: str = Form(...), 
+    items_json: str = Form(...), 
+    total: float = Form(...), 
+    status: str = Form(...)
+):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db(); cursor = conn.cursor()
     receipt = "REC-" + "".join(random.choices(string.digits, k=6))
@@ -111,10 +126,8 @@ async def checkout(request: Request, p_name:str=Form(...), p_phone:str=Form(...)
         cursor.execute("INSERT INTO customers (name, phone) VALUES (?,?)", (p_name, p_phone))
         c_id = cursor.lastrowid
         
-        # Proper profit calculation
         total_p_cost = 0
         for i in items:
-            # We fetch fresh cost price from DB to be safe
             prod = cursor.execute("SELECT purchase_price FROM products WHERE id = ?", (i['id'],)).fetchone()
             cost = prod['purchase_price'] if prod else i.get('purchase_price', 0)
             total_p_cost += float(cost) * int(i['qty'])
@@ -133,15 +146,14 @@ async def checkout(request: Request, p_name:str=Form(...), p_phone:str=Form(...)
         conn.commit()
         return {"status": "success", "receipt": receipt}
     except Exception as e:
-        conn.rollback(); return {"status": "error", "message": str(e)}
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
     finally: conn.close()
 
 @app.get("/api/v2/analytics")
 async def get_fast_stats(request: Request):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db()
-    
-    # Using alias 'val' and consistent dictionary access
     stock_val = conn.execute("SELECT SUM(stock * selling_price) as val FROM products").fetchone()
     low_stock = conn.execute("SELECT COUNT(*) as val FROM products WHERE stock < 10").fetchone()
     profit_today = conn.execute("SELECT SUM(profit) as val FROM sales WHERE date(timestamp) = date('now', 'localtime')").fetchone()

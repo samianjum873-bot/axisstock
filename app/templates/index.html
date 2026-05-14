@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduStock PRO | Dashboard</title>
+    <title>EduStock PRO | Billing Wizard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -15,24 +14,20 @@
         .hidden-field { display: none !important; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .blink-danger { animation: blinker 1s linear infinite; background-color: #fee2e2 !important; border: 2px solid #ef4444 !important; cursor: pointer; }
-        @keyframes blinker { 50% { opacity: 0.6; } }
-    
     </style>
 </head>
 <body class="bg-slate-100 flex h-screen overflow-hidden font-sans">
 
-    <!-- SIDEBAR -->
     <aside class="w-64 bg-indigo-950 text-white flex flex-col shadow-2xl z-50">
         <div class="p-6 border-b border-indigo-900">
             <h1 class="text-xl font-black italic uppercase text-yellow-400">EduStock <span class="text-white">PRO</span></h1>
         </div>
         <nav class="flex-1 mt-6 px-4 space-y-2">
             <button onclick="showTab('pos')" id="link-pos" class="sidebar-link active w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
-                <i class="fas fa-shopping-cart w-8"></i> <span class="font-bold text-xs">SALE TERMINAL (F1)</span>
+                <i class="fas fa-calculator w-8"></i> <span class="font-bold text-xs">COUNTER BILLING Wizard</span>
             </button>
             <button onclick="showTab('inventory')" id="link-inventory" class="sidebar-link w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
-                <i class="fas fa-box-open w-8"></i> <span class="font-bold text-xs">STOCK MANAGER (F2)</span>
+                <i class="fas fa-box-open w-8"></i> <span class="font-bold text-xs">STOCK MANAGER</span>
             </button>
         </nav>
         <div class="p-4 border-t border-indigo-900">
@@ -42,61 +37,214 @@
         </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col overflow-hidden">
         <header class="h-16 bg-white border-b flex items-center justify-between px-8 shadow-sm">
-            <div class="flex items-center bg-slate-100 rounded-xl px-4 py-1.5 w-1/2 border">
-                <i class="fas fa-search text-slate-400 mr-3 text-sm"></i>
-                <input type="text" id="globalSearch" onkeyup="masterFilter()" placeholder="Quick Search (F1 to focus)..." class="bg-transparent w-full outline-none font-bold text-slate-700 text-sm">
-            </div>
+            <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight" id="headerTitle">Counter Billing Terminal</h2>
             <div class="flex items-center space-x-4">
                  <button onclick="toggleModal(true)" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg hover:bg-indigo-700 transition tracking-widest uppercase">
-                    + Add Inventory (F3)
+                    + Add New Stock Item
                 </button>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
             
-            <!-- INVENTORY ANALYTICS (NOW ON TOP) -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-indigo-500">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-indigo-500">
                     <p class="text-[10px] font-black text-slate-400 uppercase">Total Stock Value</p>
-                    <h3 id="statValue" class="text-xl font-black text-slate-800 italic">Rs. 0</h3>
+                    <h3 id="statValue" class="text-lg font-black text-slate-800 italic">Rs. 0</h3>
                 </div>
-                <div id="lowStockCard" onclick="filterLowStock()" class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-rose-500 transition-all">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-rose-500">
                     <p class="text-[10px] font-black text-slate-400 uppercase">Low Stock Alert</p>
-                    <h3 id="statLow" class="text-xl font-black text-rose-600 italic">0 Items</h3>
+                    <h3 id="statLow" class="text-lg font-black text-rose-600 italic">0 Items</h3>
                 </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-emerald-500">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-emerald-500">
                     <p class="text-[10px] font-black text-slate-400 uppercase">Today's Profit</p>
-                    <h3 id="statProfit" class="text-xl font-black text-emerald-600 italic">Rs. 0</h3>
+                    <h3 id="statProfit" class="text-lg font-black text-emerald-600 italic">Rs. 0</h3>
                 </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-amber-500">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-amber-500">
                     <p class="text-[10px] font-black text-slate-400 uppercase">Pending Udhaar</p>
-                    <h3 id="statUdhaar" class="text-xl font-black text-amber-700 italic">Rs. 0</h3>
+                    <h3 id="statUdhaar" class="text-lg font-black text-amber-700 italic">Rs. 0</h3>
                 </div>
             </div>
 
-            <!-- TABS CONTENT -->
             <div id="pos" class="tab active-tab">
                 <div class="grid grid-cols-12 gap-6">
-                    <div class="col-span-12 lg:col-span-8">
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="productGrid"></div>
-                    </div>
-                    <div class="col-span-12 lg:col-span-4">
-                        <div class="bg-white rounded-3xl shadow-xl p-6 sticky top-0 border">
-                            <h2 class="font-black text-lg mb-4 flex justify-between">CHECKOUT <span id="cartCount" class="text-indigo-600">0</span></h2>
-                            <div id="cartItems" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
-                            <div class="bg-slate-900 text-yellow-400 p-4 rounded-xl mb-4">
-                                <p class="text-[10px] uppercase font-bold opacity-70">Total Bill</p>
-                                <p class="text-3xl font-black font-mono">Rs. <span id="orderTotal">0</span></p>
+                    
+                    <div class="col-span-12 xl:col-span-7 space-y-4">
+                        
+                        <div class="bg-white p-4 rounded-2xl border flex justify-around shadow-sm font-black text-xs uppercase tracking-wider">
+                            <span id="step1-badge" class="text-indigo-600"><i class="fas fa-1 circle"></i> 1. Choose & Add</span>
+                            <span id="step2-badge" class="text-slate-400"><i class="fas fa-2 circle"></i> 2. Customer details</span>
+                            <span id="step3-badge" class="text-slate-400"><i class="fas fa-3 circle"></i> 3. Payment Split</span>
+                        </div>
+
+                        <div id="wizard-step-1" class="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                            <h3 class="font-black text-slate-800 uppercase text-sm border-b pb-2">Step 1: Select Category & Products</h3>
+                            
+                            <div>
+                                <label class="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Select Sales Category</label>
+                                <select id="wizardCategory" onchange="handleWizardCategoryChange()" class="w-full border-2 p-3.5 rounded-xl font-black bg-slate-50 border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="">-- Choose Category --</option>
+                                    <option value="Stationery">Stationery Items</option>
+                                    <option value="Book">Course Books</option>
+                                    <option value="Notebook">Notebooks</option>
+                                    <option value="Set">Complete Class Set (Books + Notebooks)</option>
+                                </select>
                             </div>
-                            <input type="text" id="custName" placeholder="Parent Name" class="w-full border p-3 rounded-xl mb-3 font-bold">
-                            <button onclick="completeSale()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-emerald-700 uppercase">Print & Save</button>
+
+                            <div id="setLogicFields" class="hidden-field bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3">
+                                <p class="text-xs font-bold text-amber-800"><i class="fas fa-info-circle mr-1"></i> Entering a Class will auto-load all Books and Notebooks matching that class into the active basket with 1 quantity.</p>
+                                <div>
+                                    <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Enter Target Class (e.g. 1, 2, 10, Nursery)</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="targetClassInput" placeholder="Class name..." class="flex-1 border p-3 rounded-xl font-bold uppercase outline-none focus:ring-2 focus:ring-amber-500">
+                                        <button type="button" onclick="loadClassSetIntoCart()" class="bg-amber-600 hover:bg-amber-700 text-white font-black px-6 py-3 rounded-xl uppercase text-xs tracking-wider transition">Load Full Set</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="specificProductFields" class="hidden-field space-y-3">
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs"><i class="fas fa-search"></i></span>
+                                    <input type="text" id="wizardProductSearch" onkeyup="filterWizardProducts()" placeholder="Type item or subject to search clean list..." class="w-full border p-3 pl-9 rounded-xl font-bold bg-slate-50 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="border rounded-xl max-h-[260px] overflow-y-auto divide-y bg-white" id="wizardProductList">
+                                    <p class="p-4 text-xs font-bold text-slate-400 text-center">Please select a category above first.</p>
+                                </div>
+                            </div>
+
+                            <div class="pt-2 flex justify-end">
+                                <button type="button" onclick="goToStep(2)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition shadow-md">Next Step: Details <i class="fas fa-arrow-right ml-1"></i></button>
+                            </div>
+                        </div>
+
+                        <div id="wizard-step-2" class="hidden-field bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                            <h3 class="font-black text-slate-800 uppercase text-sm border-b pb-2">Step 2: Student & Parent Profile</h3>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Student Full Name</label>
+                                    <input type="text" id="custStudentName" placeholder="Student Name" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Father Name</label>
+                                    <input type="text" id="custFatherName" placeholder="Father's Name" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Class & Section</label>
+                                    <input type="text" id="custClassSection" placeholder="Class 10-A" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Active Phone No</label>
+                                    <input type="text" id="custPhone" placeholder="03XXXXXXXXX" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                
+                            </div>
+
+                            <div class="pt-4 border-t flex justify-between">
+                                <button type="button" onclick="goToStep(1)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition"><i class="fas fa-arrow-left mr-1"></i> Back</button>
+                                <button type="button" onclick="goToStep(3)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition shadow-md">Review & Finalize <i class="fas fa-arrow-right ml-1"></i></button>
+                            </div>
+                        </div>
+
+                        <div id="wizard-step-3" class="hidden-field bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                            <h3 class="font-black text-slate-800 uppercase text-sm border-b pb-2">Step 3: Final Payment Split & Settlement</h3>
+                            
+                            <div class="bg-slate-50 border p-4 rounded-xl text-xs font-bold text-slate-600 space-y-1">
+                                <div class="flex justify-between"><p>Student/Parent:</p><p id="lblPreviewUser">-</p></div>
+                                <div class="flex justify-between"><p>Class Spec:</p><p id="lblPreviewClass">-</p></div>
+                                <div class="flex justify-between border-t pt-1 font-black text-slate-900 text-sm">
+                                    <p>Total Payable Net Amount:</p>
+                                    <p class="text-indigo-600">Rs. <span id="lblPreviewTotal">0</span></p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Choose Settlement Option:</p>
+                                
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button type="button" onclick="processFinalSale('Paid')" class="bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition flex flex-col items-center justify-center gap-1.5">
+                                        <i class="fas fa-money-bill-wave text-xl"></i>
+                                        <span>Full Cash Payment</span>
+                                    </button>
+                                    
+                                    <button type="button" onclick="toggleCreditSplitForm(true)" class="bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition flex flex-col items-center justify-center gap-1.5">
+                                        <i class="fas fa-book-open text-xl"></i>
+                                        <span>Credit / Udhaar Split</span>
+                                    </button>
+                                </div>
+
+                                <div id="creditSplitInterface" class="hidden-field p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+                                    <h4 class="text-xs font-black text-amber-900 uppercase italic">Credit Custom Split Management</h4>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-[9px] font-black text-slate-500 uppercase mb-0.5">Cash Paid by Parent Now</label>
+                                            <input type="number" id="splitCashReceived" onkeyup="calculateSplitUdhaar()" value="0" class="w-full p-2 border rounded-lg font-black outline-none focus:ring-2 focus:ring-amber-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-black text-slate-500 uppercase mb-0.5">Remaining Balance (Udhaar)</label>
+                                            <input type="number" id="splitUdhaarBalance" class="w-full p-2 border bg-slate-100 rounded-lg font-black text-rose-600" readonly value="0">
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="processFinalSale('CreditSplit')" class="w-full bg-amber-600 hover:bg-amber-700 text-white p-3 rounded-lg font-black text-xs uppercase tracking-wider transition">Confirm Split Udhaar Entry ⚠️</button>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t">
+                                <button type="button" onclick="goToStep(2)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition"><i class="fas fa-arrow-left mr-1"></i> Back</button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="col-span-12 xl:col-span-5">
+                        <div class="bg-white rounded-2xl border shadow-sm p-5 sticky top-4 space-y-4">
+                            <div class="flex justify-between items-center pb-3 border-b">
+                                <h2 class="font-black text-slate-800 text-xs uppercase tracking-tight">Active Professional Invoice</h2>
+                                <span id="cartCount" class="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full text-[10px] font-black">0 Items Added</span>
+                            </div>
+                            
+                            <div id="cartItems" class="space-y-2 max-h-[300px] overflow-y-auto pr-1 text-xs font-bold text-slate-600">
+                                <p class="text-slate-400 italic text-center py-6">Invoice basket is completely empty.</p>
+                            </div>
+                            
+                            <div class="bg-slate-950 text-white p-4 rounded-xl shadow-inner border border-slate-800 flex justify-between items-center">
+                                <p class="text-[10px] uppercase font-black tracking-wider text-slate-400">Gross Total</p>
+                                <p class="text-xl font-black font-mono text-yellow-400">Rs. <span id="orderTotal">0</span></p>
+                            </div>
+                            
+                            <button type="button" onclick="clearActiveBasket()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-black p-2 rounded-xl text-[10px] uppercase tracking-wider transition">Clear Whole Basket</button>
                         </div>
                     </div>
+
                 </div>
+
+                <div class="mt-6 bg-white rounded-2xl border p-5 shadow-sm space-y-3">
+                    <h3 class="text-xs font-black uppercase text-slate-700 tracking-wider"><i class="fas fa-history mr-1 text-indigo-500"></i> Terminal Recent History Logs</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-400 uppercase font-black text-[10px]">
+                                <tr>
+                                    <th class="p-3">Receipt ID</th>
+                                    <th class="p-3">Net Amount</th>
+                                    <th class="p-3">Payment Status Summary</th>
+                                    <th class="p-3">Timestamp Log</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentSalesHistoryLog" class="font-bold text-slate-700 divide-y">
+                                <tr><td colspan="4" class="p-3 text-center text-slate-400">Loading history logs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
 
             <div id="inventory" class="tab">
@@ -119,19 +267,11 @@
                         </thead>
                         <tbody id="inventoryTableBody" class="text-sm font-bold"></tbody>
                     </table>
-                    <div class="p-4 bg-slate-50 border-t flex justify-between items-center text-[10px] font-black uppercase text-slate-400">
-                        <span id="pageInfo">Items</span>
-                        <div class="flex space-x-1">
-                            <button onclick="changePage(-1)" class="px-3 py-1 border bg-white rounded shadow-sm">Prev</button>
-                            <button onclick="changePage(1)" class="px-3 py-1 border bg-white rounded shadow-sm">Next</button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- SMART MODAL (WAPIS TERA WALA) -->
     <div id="addModal" class="modal fixed inset-0 z-[100] items-center justify-center">
         <div class="bg-white rounded-3xl shadow-2xl w-[90%] max-w-2xl overflow-hidden border-4 border-indigo-950">
             <div class="bg-indigo-950 p-5 text-white flex justify-between items-center">
@@ -139,15 +279,7 @@
                 <button onclick="toggleModal(false)" class="text-2xl">&times;</button>
             </div>
             
-            <div id="existingAlert" class="hidden bg-amber-50 border-l-[10px] border-amber-500 p-4 m-4 rounded-lg">
-                <p class="font-black text-amber-900 text-xs uppercase mb-2 italic">⚠️ Item already in system! Choose Action:</p>
-                <div class="flex gap-2">
-                    <button type="button" onclick="setEntryMode(false)" id="btnMerge" class="flex-1 p-2 rounded bg-amber-500 text-white font-black text-[10px] uppercase">Update Old</button>
-                    <button type="button" onclick="setEntryMode(true)" id="btnSeparate" class="flex-1 p-2 rounded bg-indigo-600 text-white font-black text-[10px] uppercase">New Entry</button>
-                </div>
-            </div>
-
-            <form id="addProdForm" class="p-6 space-y-4">
+            <form id="addProdForm" onsubmit="submitInventoryForm(event)" class="p-6 space-y-4">
                 <input type="hidden" name="mode" id="formMode" value="new">
                 <input type="hidden" name="prod_id" id="prod_id">
                 <input type="hidden" name="force_new" id="forceNew" value="false">
@@ -159,37 +291,34 @@
                         <option value="Notebook">Notebook</option>
                     </select>
                     <div id="statItemNameField">
-                        <input type="text" id="statName" onkeyup="checkDuplicate()" placeholder="Item Name (e.g. Sharpener)" class="w-full border-2 p-3 rounded-xl font-bold">
+                        <input type="text" name="name" id="statName" placeholder="Item Name (e.g. Sharpener)" class="w-full border-2 p-3 rounded-xl font-bold">
                     </div>
                 </div>
 
                 <div id="stationeryFields" class="grid grid-cols-3 gap-2">
-                    <input type="text" id="statBrand" onkeyup="checkDuplicate()" placeholder="Brand" class="border p-2 rounded-lg text-sm font-bold">
-                    <input type="text" id="statColor" onkeyup="checkDuplicate()" placeholder="Color" class="border p-2 rounded-lg text-sm font-bold">
-                    <input type="text" id="statType" onkeyup="checkDuplicate()" placeholder="Size" class="border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="tag" id="statBrand" placeholder="Brand" class="border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="variation" id="statColor" placeholder="Color/Specs" class="border p-2 rounded-lg text-sm font-bold">
                 </div>
 
                 <div id="bookFields" class="hidden-field grid grid-cols-3 gap-2">
-                    <input type="text" id="bookClass" onkeyup="checkDuplicate()" placeholder="Class" class="border p-2 rounded-lg text-sm font-bold">
-                    <input type="text" id="bookName" onkeyup="checkDuplicate()" placeholder="Subject" class="col-span-2 border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="s_class" id="bookClass" placeholder="Class (e.g. 10, 1)" class="border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="sub" id="bookName" placeholder="Subject Name" class="col-span-2 border p-2 rounded-lg text-sm font-bold">
                 </div>
 
                 <div class="bg-indigo-900 p-4 rounded-2xl grid grid-cols-2 gap-3">
-                    <input type="number" name="stock" id="totalQty" onkeyup="calcPrices()" placeholder="Qty" class="p-3 rounded-lg font-black text-lg">
-                    <input type="number" id="totalBuy" onkeyup="calcPrices()" placeholder="Total Bill" class="p-3 rounded-lg font-black text-lg">
-                    <input type="number" step="any" name="p_price" id="perItemCost" class="p-3 rounded-lg font-black text-lg bg-indigo-800 text-white" readonly placeholder="Cost">
-                    <input type="number" name="s_price" id="perItemSell" placeholder="Sell Price" class="p-3 rounded-lg font-black text-lg border-2 border-yellow-400">
+                    <input type="number" name="stock" id="totalQty" placeholder="Quantity" class="p-3 rounded-lg font-black text-lg">
+                    <input type="number" step="any" name="p_price" id="perItemCost" placeholder="Cost Price" class="p-3 rounded-lg font-black text-lg">
+                    <input type="number" step="any" name="s_price" id="perItemSell" placeholder="Sell Price" class="p-3 rounded-lg font-black text-lg border-2 border-yellow-400">
                 </div>
 
-                <button type="submit" id="submitBtn" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase">Confirm Entry ✅</button>
+                <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase">Confirm Entry ✅</button>
             </form>
         </div>
     </div>
 
     <script>
-        let inventory = []; let filteredData = []; let currentPage = 1; let cart = [];
-        const itemsPerPage = 25;
-
+        let inventory = []; let cart = []; let currentWizardStep = 1;
+        
         async function refreshData() {
             const res = await fetch('/api/inventory');
             inventory = await res.json();
@@ -201,215 +330,296 @@
             document.getElementById('statProfit').innerText = `Rs. ${stats.profit_today.toLocaleString()}`;
             document.getElementById('statUdhaar').innerText = `Rs. ${stats.udhaar.toLocaleString()}`;
             
-            masterFilter(); updateAlerts();
+            renderInventoryTable();
+            renderWizardProducts();
+            loadRecentHistoryLogs();
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active-tab'));
+            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active-tab');
+            document.getElementById('link-' + tabId).classList.add('active');
+            document.getElementById('headerTitle').innerText = tabId === 'pos' ? 'Counter Billing Terminal' : 'Stock Inventory Management';
+        }
+
+        function toggleModal(show) {
+            document.getElementById('addModal').classList.toggle('active', show);
+            if(!show) {
+                document.getElementById('addProdForm').reset();
+                document.getElementById('formMode').value = 'new';
+                document.getElementById('forceNew').value = 'false';
+            }
+        }
+
+        function handleCatChange() {
+            const cat = document.getElementById('catSelect').value;
+            document.getElementById('stationeryFields').classList.toggle('hidden-field', cat !== 'Stationery');
+            document.getElementById('bookFields').classList.toggle('hidden-field', cat === 'Stationery');
+        }
+
+        async function submitInventoryForm(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('addProdForm'));
+            const response = await fetch('/api/products/smart-add', { method: 'POST', body: formData });
+            const data = await response.json();
+            if(data.status === 'success') {
+                toggleModal(false);
+                refreshData();
+            }
+        }
+
+        function renderInventoryTable() {
+            const body = document.getElementById('inventoryTableBody');
+            body.innerHTML = inventory.map(item => `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-4">${item.name}</td>
+                    <td class="p-4"><span class="bg-slate-200 px-2 py-0.5 rounded text-[10px] uppercase font-black">${item.category}</span></td>
+                    <td class="p-4 text-xs text-slate-500">${item.category === 'Stationery' ? (item.tag + ' ' + item.variation) : ('Class ' + item.student_class + ' | ' + item.subject)}</td>
+                    <td class="p-4">Cost: ${item.purchase_price} | Sell: <span class="text-indigo-600 font-bold">${item.selling_price}</span></td>
+                    <td class="p-4 text-center ${item.stock < 10 ? 'text-rose-600 font-black bg-rose-50' : ''}">${item.stock}</td>
+                </tr>
+            `).join('');
         }
 
         function toggleSubFilters() {
             const cat = document.getElementById('filterCat').value;
-            const showSub = (cat === 'Book' || cat === 'Notebook');
-            document.getElementById('filterClass').classList.toggle('hidden', !showSub);
-            document.getElementById('filterSubject').classList.toggle('hidden', !showSub);
-            if(!showSub) {
-                document.getElementById('filterClass').value = "";
-                document.getElementById('filterSubject').value = "";
-            }
+            document.getElementById('filterClass').classList.toggle('hidden', cat === 'Stationery' || cat === '');
+            document.getElementById('filterSubject').classList.toggle('hidden', cat === 'Stationery' || cat === '');
         }
 
         function masterFilter() {
-            const q = document.getElementById('globalSearch').value.toLowerCase();
-            const cat = document.getElementById('filterCat').value;
+            const cat = document.getElementById('filterCat').value.toLowerCase();
             const cls = document.getElementById('filterClass').value.toLowerCase();
             const sub = document.getElementById('filterSubject').value.toLowerCase();
             
-            filteredData = inventory.filter(p => {
-                const searchStr = `${p.name} ${p.tag} ${p.student_class} ${p.category}`.toLowerCase();
-                const matchQuery = searchStr.includes(q);
-                const matchCat = (cat === "" || p.category === cat);
-                const matchClass = (cls === "" || (p.student_class && p.student_class.toLowerCase().includes(cls)));
-                const matchSub = (sub === "" || (p.subject && p.subject.toLowerCase().includes(sub)));
-                
-                return matchQuery && matchCat && matchClass && matchSub;
+            const filtered = inventory.filter(item => {
+                const matchCat = !cat || item.category.toLowerCase() === cat;
+                const matchCls = !cls || (item.student_class && item.student_class.toLowerCase().includes(cls));
+                const matchSub = !sub || (item.subject && item.subject.toLowerCase().includes(sub));
+                return matchCat && matchCls && matchSub;
             });
-            currentPage = 1; renderAll();
-        }
 
-        function renderAll() {
-            const start = (currentPage - 1) * itemsPerPage;
-            const paginated = filteredData.slice(start, start + itemsPerPage);
-
-            document.getElementById('inventoryTableBody').innerHTML = paginated.map(p => `
+            const body = document.getElementById('inventoryTableBody');
+            body.innerHTML = filtered.map(item => `
                 <tr class="border-b hover:bg-slate-50">
-                    <td class="p-4"><div>${p.name}</div><div class="text-[10px] text-slate-400">#${p.id}</div></td>
-                    <td class="p-4"><span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] uppercase font-black">${p.category}</span></td>
-                    <td class="p-4 text-xs italic text-slate-500">${p.tag || ('Class ' + p.student_class)}</td>
-                    <td class="p-4"><div>Sell: Rs. ${p.selling_price}</div><div class="text-[10px] text-slate-400">Cost: ${p.purchase_price}</div></td>
-                    <td class="p-4 text-center"><div class="px-3 py-1 rounded-lg font-black ${p.stock < 10 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-700'}">${p.stock}</div></td>
-                </tr>`).join('');
+                    <td class="p-4">${item.name}</td>
+                    <td class="p-4"><span class="bg-slate-200 px-2 py-0.5 rounded text-[10px] uppercase font-black">${item.category}</span></td>
+                    <td class="p-4 text-xs text-slate-500">${item.category === 'Stationery' ? (item.tag + ' ' + item.variation) : ('Class ' + item.student_class + ' | ' + item.subject)}</td>
+                    <td class="p-4">Cost: ${item.purchase_price} | Sell: ${item.selling_price}</td>
+                    <td class="p-4 text-center">${item.stock}</td>
+                </tr>
+            `).join('');
+        }
 
-            document.getElementById('productGrid').innerHTML = paginated.map(p => `
-                <div onclick="addToCart(${p.id})" class="bg-white p-4 rounded-2xl border-2 border-transparent hover:border-indigo-500 transition cursor-pointer shadow-sm relative">
-                    <div class="text-[8px] font-black uppercase text-slate-400 mb-1">${p.category}</div>
-                    <h3 class="font-black text-sm uppercase">${p.name}</h3>
-                    <p class="text-[10px] text-slate-400">${p.tag || ('Class ' + p.student_class)}</p>
-                    <div class="flex justify-between items-center mt-4">
-                        <span class="font-black text-indigo-600">Rs. ${p.selling_price}</span>
-                        <span class="text-[10px] font-bold ${p.stock < 5 ? 'text-rose-500':'text-slate-400'}">Stk: ${p.stock}</span>
+        function handleWizardCategoryChange() {
+            const val = document.getElementById('wizardCategory').value;
+            document.getElementById('setLogicFields').classList.toggle('hidden-field', val !== 'Set');
+            document.getElementById('specificProductFields').classList.toggle('hidden-field', val === 'Set' || val === '');
+            renderWizardProducts();
+        }
+
+        function renderWizardProducts() {
+            const cat = document.getElementById('wizardCategory').value;
+            const listContainer = document.getElementById('wizardProductList');
+            if(!cat || cat === 'Set') return;
+
+            const filtered = inventory.filter(i => i.category === cat && i.stock > 0);
+            if(filtered.length === 0) {
+                listContainer.innerHTML = `<p class="p-4 text-xs font-bold text-slate-400 text-center">No active stock available for this category.</p>`;
+                return;
+            }
+
+            listContainer.innerHTML = filtered.map(i => `
+                <div class="p-3 flex justify-between items-center hover:bg-slate-50 text-xs font-bold">
+                    <div>
+                        <p class="text-slate-800">${i.name} ${i.category === 'Stationery' ? `(${i.tag})` : ''}</p>
+                        <p class="text-[10px] text-slate-400 uppercase">${i.category === 'Stationery' ? i.variation : `Class ${i.student_class} | ${i.subject}`}</p>
                     </div>
-                </div>`).join('');
-
-            document.getElementById('pageInfo').innerText = `Showing ${start+1}-${Math.min(start+itemsPerPage, filteredData.length)} of ${filteredData.length}`;
+                    <div class="flex items-center gap-3">
+                        <span class="text-indigo-600 font-black">Rs. ${i.selling_price}</span>
+                        <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">Stock: ${i.stock}</span>
+                        <button onclick="addToCart(${i.id})" class="bg-indigo-600 text-white px-2.5 py-1 rounded-lg text-[10px] uppercase font-black hover:bg-indigo-700 transition">+ Add</button>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        // --- THE LEGENDARY FORM LOGICS (RESTORED) ---
-        function handleCatChange() {
-            const cat = document.getElementById('catSelect').value;
-            document.getElementById('stationeryFields').classList.toggle('hidden-field', cat !== 'Stationery');
-            document.getElementById('statItemNameField').classList.toggle('hidden-field', cat !== 'Stationery');
-            document.getElementById('bookFields').classList.toggle('hidden-field', cat === 'Stationery');
+        function filterWizardProducts() {
+            const q = document.getElementById('wizardProductSearch').value.toLowerCase();
+            const items = document.getElementById('wizardProductList').children;
+            for(let item of items) {
+                if(item.innerText) {
+                    item.style.display = item.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+                }
+            }
+        }
+
+        function loadClassSetIntoCart() {
+            const cls = document.getElementById('targetClassInput').value.trim().toLowerCase();
+            if(!cls) return alert('Please input class specifier!');
             
-            // Adjust placeholders based on selection
-            if(cat === 'Notebook') {
-                document.getElementById('bookClass').placeholder = "Class (Notebook)";
-                document.getElementById('bookName').placeholder = "Notebook Type / Subject";
-            } else {
-                document.getElementById('bookClass').placeholder = "Class";
-                document.getElementById('bookName').placeholder = "Subject";
-            }
-            checkDuplicate();
+            const matched = inventory.filter(i => (i.category === 'Book' || i.category === 'Notebook') && i.student_class.toLowerCase() === cls && i.stock > 0);
+            if(matched.length === 0) return alert('No set matches found for this targeted class.');
+
+            matched.forEach(i => addToCart(i.id));
+            document.getElementById('targetClassInput').value = '';
         }
 
-        async function checkDuplicate() {
-            const cat = document.getElementById('catSelect').value;
-            let query = "";
-            if(cat === 'Stationery') {
-                const name = document.getElementById('statName').value;
-                const tag = `${document.getElementById('statBrand').value} ${document.getElementById('statColor').value} ${document.getElementById('statType').value}`.trim();
-                if(name.length < 2) return document.getElementById('existingAlert').classList.add('hidden');
-                query = `name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`;
-            } else {
-                const name = document.getElementById('bookName').value;
-                const s_class = document.getElementById('bookClass').value;
-                if(!name || !s_class) return document.getElementById('existingAlert').classList.add('hidden');
-                query = `name=${encodeURIComponent(name)}&s_class=${encodeURIComponent(s_class)}`;
-            }
-            const res = await fetch(`/api/products/check-existing?${query}`);
-            const data = await res.json();
-            const alertBox = document.getElementById('existingAlert');
-            if(data.id) {
-                alertBox.classList.remove('hidden');
-                document.getElementById('prod_id').value = data.id;
-                document.getElementById('perItemSell').value = data.selling_price;
-                setEntryMode(false);
-            } else {
-                alertBox.classList.add('hidden');
-                setEntryMode(true);
-            }
-        }
-
-        function setEntryMode(isNew) {
-            document.getElementById('forceNew').value = isNew;
-            document.getElementById('formMode').value = isNew ? 'new' : 'update';
-            document.getElementById('submitBtn').innerText = isNew ? "Save New Entry ✅" : "Update Old Stock 🔄";
-            document.getElementById('submitBtn').className = isNew ? "w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-xl" : "w-full bg-amber-500 text-white py-4 rounded-xl font-black text-xl";
-        }
-
-        function calcPrices() {
-            const bill = parseFloat(document.getElementById('totalBuy').value) || 0;
-            const qty = parseInt(document.getElementById('totalQty').value) || 1;
-            document.getElementById('perItemCost').value = (bill / qty).toFixed(2);
-        }
-
-        document.getElementById('addProdForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const cat = document.getElementById('catSelect').value;
-            if(cat === 'Stationery') {
-                fd.set('name', document.getElementById('statName').value);
-                fd.set('tag', `${document.getElementById('statBrand').value} ${document.getElementById('statColor').value} ${document.getElementById('statType').value}`.trim());
-            } else {
-                fd.set('name', document.getElementById('bookName').value);
-                fd.set('s_class', document.getElementById('bookClass').value);
-            }
-            await fetch('/api/products/smart-add', {method: 'POST', body: fd});
-            toggleModal(false); refreshData();
-        };
-
-        // --- UI & TAB HELPERS ---
-        function showTab(id) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active-tab'));
-            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-            document.getElementById(id).classList.add('active-tab');
-            document.getElementById('link-'+id).classList.add('active');
-        }
-        function toggleModal(show) { 
-            document.getElementById('addModal').classList.toggle('active', show);
-            if(!show) document.getElementById('addProdForm').reset();
-        }
-        function changePage(dir) {
-            const max = Math.ceil(filteredData.length / itemsPerPage);
-            if(currentPage + dir >= 1 && currentPage + dir <= max) { currentPage += dir; renderAll(); }
-        }
         function addToCart(id) {
-            const i = inventory.find(p => p.id === id);
-            if(i.stock <= 0) return alert("No Stock!");
-            cart.push({...i}); updateCartUI();
-        }
-        function updateCartUI() {
-            document.getElementById('cartItems').innerHTML = cart.map((i, idx) => `
-                <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border text-xs">
-                    <span class="font-bold">${i.name}</span>
-                    <button onclick="cart.splice(${idx},1);updateCartUI()" class="text-rose-500 font-black px-2">&times;</button>
-                </div>`).join('');
-            document.getElementById('orderTotal').innerText = cart.reduce((a,b) => a + b.selling_price, 0);
-            document.getElementById('cartCount').innerText = cart.length;
-        }
-        async function completeSale() {
-            if(!cart.length) return;
-            const fd = new FormData();
-            fd.append('p_name', document.getElementById('custName').value || 'Cash Parent');
-            fd.append('p_phone', '0000');
-            fd.append('items_json', JSON.stringify(cart.map(i => ({...i, qty:1}))));
-            fd.append('total', document.getElementById('orderTotal').innerText);
-            fd.append('status', 'Paid');
-            await fetch('/api/checkout', {method:'POST', body:fd});
-            cart = []; updateCartUI(); refreshData();
-        }
-
-        window.addEventListener('keydown', (e) => {
-            if(e.key === 'F1') { e.preventDefault(); showTab('pos'); document.getElementById('globalSearch').focus(); }
-            if(e.key === 'F2') { e.preventDefault(); showTab('inventory'); }
-            if(e.key === 'F3') { e.preventDefault(); toggleModal(true); }
-        });
-
-        
-        function filterLowStock() {
-            showTab('inventory');
-            const lowItems = inventory.filter(p => {
-                // Assuming max capacity is double the initial or we use a threshold
-                // Since DB doesn't have 'max_stock', we use 10 as hard limit or 30% of a standard box (e.g. 50)
-                // Par tere case mein hum 10 units ko hi 30% threshold maan kar chalte hain ya logic change krte hain
-                return p.stock < 10; 
-            });
-            document.getElementById('globalSearch').value = ""; // Clear search
-            filteredData = lowItems;
-            currentPage = 1;
-            renderAll();
-            document.getElementById('globalSearch').placeholder = "VIEWING LOW STOCK ITEMS...";
-        }
-
-        async function updateAlerts() {
-            const card = document.getElementById('lowStockCard');
-            const countText = document.getElementById('statLow').innerText;
-            const count = parseInt(countText);
-            
-            if (count > 0) {
-                card.classList.add('blink-danger');
+            const prod = inventory.find(i => i.id === id);
+            const exist = cart.find(c => c.id === id);
+            if(exist) {
+                if(exist.qty >= prod.stock) return alert('Cannot exceed maximum available stock inventory count!');
+                exist.qty++;
             } else {
-                card.classList.remove('blink-danger');
+                cart.push({ id: prod.id, name: prod.name, selling_price: prod.selling_price, purchase_price: prod.purchase_price, qty: 1 });
+            }
+            updateCartUI();
+        }
+
+        function changeCartQty(id, delta) {
+            const prod = inventory.find(i => i.id === id);
+            const item = cart.find(c => c.id === id);
+            item.qty += delta;
+            if(item.qty <= 0) {
+                cart = cart.filter(c => c.id !== id);
+            } else if (item.qty > prod.stock) {
+                alert('Max warehouse stock reached.');
+                item.qty = prod.stock;
+            }
+            updateCartUI();
+        }
+
+        function clearActiveBasket() { cart = []; updateCartUI(); }
+
+        function updateCartUI() {
+            const container = document.getElementById('cartItems');
+            document.getElementById('cartCount').innerText = `${cart.reduce((a, b) => a + b.qty, 0)} Items Added`;
+            
+            if(cart.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 italic text-center py-6">Invoice basket is completely empty.</p>`;
+                document.getElementById('orderTotal').innerText = '0';
+                return;
+            }
+
+            container.innerHTML = cart.map(c => `
+                <div class="flex justify-between items-center border-b pb-2">
+                    <div class="flex-1 min-w-0 pr-2">
+                        <p class="truncate text-slate-800">${c.name}</p>
+                        <p class="text-[10px] text-slate-400">Rs. ${c.selling_price} x ${c.qty}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="changeCartQty(${c.id}, -1)" class="bg-slate-200 px-2 py-0.5 rounded text-xs font-bold">-</button>
+                        <span class="font-black font-mono">${c.qty}</span>
+                        <button onclick="changeCartQty(${c.id}, 1)" class="bg-slate-200 px-2 py-0.5 rounded text-xs font-bold">+</button>
+                    </div>
+                </div>
+            `).join('');
+
+            const total = cart.reduce((a, b) => a + (b.selling_price * b.qty), 0);
+            document.getElementById('orderTotal').innerText = total.toLocaleString();
+            document.getElementById('lblPreviewTotal').innerText = total.toLocaleString();
+        }
+
+        function goToStep(step) {
+            if(step === 2 && cart.length === 0) return alert('Please add at least 1 item to the inventory checkout basket!');
+            
+            if(step === 3) {
+                const sName = document.getElementById('custStudentName').value.trim();
+                const phone = document.getElementById('custPhone').value.trim();
+                if(!sName || !phone) return alert('Student name and active phone parameters are strictly required!');
+                
+                document.getElementById('lblPreviewUser').innerText = `${sName} (F/O: ${document.getElementById('custFatherName').value || 'N/A'})`;
+                document.getElementById('lblPreviewClass').innerText = document.getElementById('custClassSection').value || 'General Management';
+                calculateSplitUdhaar();
+            }
+
+            document.getElementById(`wizard-step-${currentWizardStep}`).classList.add('hidden-field');
+            document.getElementById(`wizard-step-${step}`).classList.remove('hidden-field');
+            
+            document.getElementById(`step${currentWizardStep}-badge`).className = 'text-slate-400';
+            document.getElementById(`step${step}-badge`).className = 'text-indigo-600';
+            
+            currentWizardStep = step;
+        }
+
+        function toggleCreditSplitForm(show) {
+            document.getElementById('creditSplitInterface').classList.toggle('hidden-field', !show);
+            calculateSplitUdhaar();
+        }
+
+        function calculateSplitUdhaar() {
+            const total = cart.reduce((a, b) => a + (b.selling_price * b.qty), 0);
+            const cash = parseFloat(document.getElementById('splitCashReceived').value) || 0;
+            const balance = total - cash;
+            document.getElementById('splitUdhaarBalance').value = balance < 0 ? 0 : balance;
+        }
+
+        async function processFinalSale(mode) {
+            const sName = document.getElementById('custStudentName').value.trim();
+            const fName = document.getElementById('custFatherName').value.trim();
+            const clsSec = document.getElementById('custClassSection').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
+            const total = cart.reduce((a, b) => a + (b.selling_price * b.qty), 0);
+            
+            let status = 'Paid';
+            if(mode === 'CreditSplit') {
+                const cash = parseFloat(document.getElementById('splitCashReceived').value) || 0;
+                status = cash === 0 ? 'Credit' : `Partial (Cash: ${cash})`;
+            }
+
+            const pName = `${sName} | Father: ${fName || 'N/A'} | Class: ${clsSec || 'N/A'}`;
+            
+            const bodyData = new URLSearchParams();
+            bodyData.append('p_name', pName);
+            bodyData.append('p_phone', phone);
+            bodyData.append('items_json', JSON.stringify(cart));
+            bodyData.append('total', total);
+            bodyData.append('status', status);
+
+            const res = await fetch('/api/checkout', { method: 'POST', body: bodyData });
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                alert(`Invoice successfully processed!\nReceipt Generated ID: ${data.receipt}`);
+                clearActiveBasket();
+                document.getElementById('addProdForm').reset();
+                document.getElementById('creditSplitInterface').classList.add('hidden-field');
+                document.getElementById('splitCashReceived').value = 0;
+                goToStep(1);
+                refreshData();
+            } else {
+                alert(`Error executing processing logic: ${data.message}`);
             }
         }
-            window.onload = refreshData;
+
+        async function loadRecentHistoryLogs() {
+            const res = await fetch('/api/sales-recent');
+            const data = await res.json();
+            const body = document.getElementById('recentSalesHistoryLog');
+            
+            if(data.length === 0) {
+                body.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-slate-400">No terminal history transactions logged yet.</td></tr>`;
+                return;
+            }
+
+            body.innerHTML = data.map(log => `
+                <tr class="hover:bg-slate-50 border-b">
+                    <td class="p-3 font-mono text-indigo-600">${log.receipt_number}</td>
+                    <td class="p-3">Rs. ${log.total_amount.toLocaleString()}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] uppercase font-black ${log.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                            ${log.payment_status}
+                        </span>
+                    </td>
+                    <td class="p-3 text-slate-400 text-[11px]">${log.timestamp}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Auto-Trigger Bootstrapping
+        window.onload = refreshData;
     </script>
 </body>
 </html>
-    
