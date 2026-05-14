@@ -9,25 +9,18 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 DB_PATH = "app/database/school_store.db"
 
-# Database Helper
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     return conn
 
-# AUTH CHECK: Check if user is logged in via cookies
 def is_logged_in(request: Request):
     user = request.cookies.get("active_user")
-    if not user:
-        return False
-    return True
-
-# --- ROUTES ---
+    return True if user else False
 
 @app.get("/")
 async def index(request: Request):
-    if not is_logged_in(request):
-        return RedirectResponse(url="/login", status_code=303)
+    if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(request, "index.html")
 
 @app.get("/login")
@@ -39,7 +32,6 @@ async def do_login(response: Response, username: str = Form(...), password: str 
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
     conn.close()
-    
     if user:
         resp = RedirectResponse(url="/", status_code=303)
         resp.set_cookie(key="active_user", value=username)
@@ -52,14 +44,50 @@ async def logout():
     resp.delete_cookie("active_user")
     return resp
 
-# --- API ENDPOINTS (Protected) ---
+# --- SMART INVENTORY APIs ---
 
-@app.post("/api/products/add")
-async def add_p(request: Request, name:str=Form(...), cat:str=Form(...), s_class:str=Form(...), sub:str=Form(...), p_price:float=Form(...), s_price:float=Form(...), stock:int=Form(...)):
+
+@app.get("/api/products/check-existing")
+async def check_existing(tag: str = None, name: str = None, s_class: str = None):
+    conn = get_db()
+    if tag and name: # Strict Stationery: Name AND Tag must match
+        result = conn.execute("SELECT * FROM products WHERE name = ? AND tag = ?", (name, tag)).fetchone()
+    elif name and s_class: # Book check
+        result = conn.execute("SELECT * FROM products WHERE name = ? AND student_class = ?", (name, s_class)).fetchone()
+    else:
+        result = None
+    conn.close()
+    return result if result else {"exists": False}
+
+
+@app.post("/api/products/smart-add")
+async def smart_add(
+    request: Request, 
+    mode: str = Form(...), # 'new' or 'update'
+    prod_id: int = Form(None),
+    name: str = Form(...),
+    cat: str = Form(...),
+    s_class: str = Form(""),
+    sub: str = Form(""),
+    tag: str = Form(""),
+    variation: str = Form(""),
+    p_price: float = Form(...), # Single item cost
+    s_price: float = Form(...), # Single item sell
+    stock: int = Form(...),
+    force_new: bool = Form(False)
+):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db(); cursor = conn.cursor()
-    cursor.execute("INSERT INTO products (name, category, student_class, subject, purchase_price, selling_price, stock) VALUES (?,?,?,?,?,?,?)",
-                 (name, cat, s_class, sub, p_price, s_price, stock))
+    
+    if mode == 'update' and prod_id and not force_new:
+        cursor.execute("UPDATE products SET stock = stock + ?, purchase_price = ?, selling_price = ? WHERE id = ?", 
+                       (stock, p_price, s_price, prod_id))
+    else:
+        cursor.execute("""INSERT INTO products 
+            (name, category, student_class, subject, purchase_price, selling_price, stock, tag, variation) 
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            (name, cat, s_class, sub, p_price, s_price, stock, tag, variation))
+    
     conn.commit(); conn.close()
     return {"status": "success"}
 
@@ -67,7 +95,7 @@ async def add_p(request: Request, name:str=Form(...), cat:str=Form(...), s_class
 async def list_inv(request: Request):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db()
-    data = conn.execute("SELECT * FROM products").fetchall()
+    data = conn.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
     conn.close()
     return data
 
@@ -80,8 +108,8 @@ async def checkout(request: Request, p_name:str=Form(...), p_phone:str=Form(...)
     try:
         cursor.execute("INSERT INTO customers (name, phone) VALUES (?,?)", (p_name, p_phone))
         c_id = cursor.lastrowid
-        total_p_price = sum(float(i['p_price']) * int(i['qty']) for i in items)
-        profit = total - total_p_price
+        total_p_cost = sum(float(i['p_price']) * int(i['qty']) for i in items)
+        profit = total - total_p_cost
         cursor.execute("INSERT INTO sales (customer_id, receipt_number, total_amount, profit, payment_status) VALUES (?,?,?,?,?)",
                        (c_id, receipt, total, profit, status))
         sale_id = cursor.lastrowid
