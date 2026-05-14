@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import sqlite3, random, string, json
+from datetime import datetime
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -11,6 +12,7 @@ DB_PATH = "app/database/school_store.db"
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
+    # Row factory ensures we get dictionaries instead of tuples
     conn.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     return conn
 
@@ -46,24 +48,21 @@ async def logout():
 
 # --- SMART INVENTORY APIs ---
 
-
 @app.get("/api/products/check-existing")
 async def check_existing(tag: str = None, name: str = None, s_class: str = None):
     conn = get_db()
-    if tag and name: # Strict Stationery: Name AND Tag must match
+    result = None
+    if tag and name: 
         result = conn.execute("SELECT * FROM products WHERE name = ? AND tag = ?", (name, tag)).fetchone()
-    elif name and s_class: # Book check
+    elif name and s_class:
         result = conn.execute("SELECT * FROM products WHERE name = ? AND student_class = ?", (name, s_class)).fetchone()
-    else:
-        result = None
     conn.close()
     return result if result else {"exists": False}
-
 
 @app.post("/api/products/smart-add")
 async def smart_add(
     request: Request, 
-    mode: str = Form(...), # 'new' or 'update'
+    mode: str = Form(...), 
     prod_id: int = Form(None),
     name: str = Form(...),
     cat: str = Form(...),
@@ -71,15 +70,18 @@ async def smart_add(
     sub: str = Form(""),
     tag: str = Form(""),
     variation: str = Form(""),
-    p_price: float = Form(...), # Single item cost
-    s_price: float = Form(...), # Single item sell
+    p_price: float = Form(...), 
+    s_price: float = Form(...), 
     stock: int = Form(...),
-    force_new: bool = Form(False)
+    force_new: str = Form("false") # JavaScript sends strings
 ):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db(); cursor = conn.cursor()
     
-    if mode == 'update' and prod_id and not force_new:
+    # Handle JS boolean string
+    is_force_new = True if force_new.lower() == "true" else False
+
+    if mode == 'update' and prod_id and not is_force_new:
         cursor.execute("UPDATE products SET stock = stock + ?, purchase_price = ?, selling_price = ? WHERE id = ?", 
                        (stock, p_price, s_price, prod_id))
     else:
@@ -108,26 +110,48 @@ async def checkout(request: Request, p_name:str=Form(...), p_phone:str=Form(...)
     try:
         cursor.execute("INSERT INTO customers (name, phone) VALUES (?,?)", (p_name, p_phone))
         c_id = cursor.lastrowid
-        total_p_cost = sum(float(i['p_price']) * int(i['qty']) for i in items)
+        
+        # Proper profit calculation
+        total_p_cost = 0
+        for i in items:
+            # We fetch fresh cost price from DB to be safe
+            prod = cursor.execute("SELECT purchase_price FROM products WHERE id = ?", (i['id'],)).fetchone()
+            cost = prod['purchase_price'] if prod else i.get('purchase_price', 0)
+            total_p_cost += float(cost) * int(i['qty'])
+            
         profit = total - total_p_cost
+        
         cursor.execute("INSERT INTO sales (customer_id, receipt_number, total_amount, profit, payment_status) VALUES (?,?,?,?,?)",
                        (c_id, receipt, total, profit, status))
         sale_id = cursor.lastrowid
+        
         for i in items:
-            cursor.execute("INSERT INTO sale_items (sale_id, product_name, qty, price) VALUES (?,?,?,?)", (sale_id, i['name'], i['qty'], i['s_price']))
+            cursor.execute("INSERT INTO sale_items (sale_id, product_name, qty, price) VALUES (?,?,?,?)", 
+                           (sale_id, i['name'], i['qty'], i['selling_price']))
             cursor.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (i['qty'], i['id']))
+            
         conn.commit()
         return {"status": "success", "receipt": receipt}
     except Exception as e:
         conn.rollback(); return {"status": "error", "message": str(e)}
     finally: conn.close()
 
-@app.get("/api/reports/summary")
-async def report(request: Request):
+@app.get("/api/v2/analytics")
+async def get_fast_stats(request: Request):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db()
-    total_sales = conn.execute("SELECT SUM(total_amount) as total FROM sales").fetchone()['total'] or 0
-    total_profit = conn.execute("SELECT SUM(profit) as profit FROM sales").fetchone()['profit'] or 0
-    udhaar = conn.execute("SELECT SUM(total_amount) as total FROM sales WHERE payment_status = 'Pending'").fetchone()['total'] or 0
+    
+    # Using alias 'val' and consistent dictionary access
+    stock_val = conn.execute("SELECT SUM(stock * selling_price) as val FROM products").fetchone()
+    low_stock = conn.execute("SELECT COUNT(*) as val FROM products WHERE stock < 10").fetchone()
+    profit_today = conn.execute("SELECT SUM(profit) as val FROM sales WHERE date(timestamp) = date('now', 'localtime')").fetchone()
+    udhaar = conn.execute("SELECT SUM(total_amount) as val FROM sales WHERE payment_status != 'Paid'").fetchone()
+    
+    stats = {
+        "stock_value": stock_val['val'] if stock_val['val'] else 0,
+        "low_stock": low_stock['val'] if low_stock['val'] else 0,
+        "profit_today": profit_today['val'] if profit_today['val'] else 0,
+        "udhaar": udhaar['val'] if udhaar['val'] else 0
+    }
     conn.close()
-    return {"sales": total_sales, "profit": total_profit, "udhaar": udhaar}
+    return stats

@@ -1,4 +1,10 @@
+import os
 
+def apply_final_fix():
+    html_path = "app/templates/index.html"
+    if not os.path.exists(html_path): return
+
+    new_html = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,9 +21,6 @@
         .hidden-field { display: none !important; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .blink-danger { animation: blinker 1s linear infinite; background-color: #fee2e2 !important; border: 2px solid #ef4444 !important; cursor: pointer; }
-        @keyframes blinker { 50% { opacity: 0.6; } }
-    
     </style>
 </head>
 <body class="bg-slate-100 flex h-screen overflow-hidden font-sans">
@@ -64,7 +67,7 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase">Total Stock Value</p>
                     <h3 id="statValue" class="text-xl font-black text-slate-800 italic">Rs. 0</h3>
                 </div>
-                <div id="lowStockCard" onclick="filterLowStock()" class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-rose-500 transition-all">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-rose-500">
                     <p class="text-[10px] font-black text-slate-400 uppercase">Low Stock Alert</p>
                     <h3 id="statLow" class="text-xl font-black text-rose-600 italic">0 Items</h3>
                 </div>
@@ -198,7 +201,7 @@
             document.getElementById('statProfit').innerText = `Rs. ${stats.profit_today.toLocaleString()}`;
             document.getElementById('statUdhaar').innerText = `Rs. ${stats.udhaar.toLocaleString()}`;
             
-            masterFilter(); updateAlerts();
+            masterFilter();
         }
 
         function masterFilter() {
@@ -350,35 +353,14 @@
             if(e.key === 'F3') { e.preventDefault(); toggleModal(true); }
         });
 
-        
-        function filterLowStock() {
-            showTab('inventory');
-            const lowItems = inventory.filter(p => {
-                // Assuming max capacity is double the initial or we use a threshold
-                // Since DB doesn't have 'max_stock', we use 10 as hard limit or 30% of a standard box (e.g. 50)
-                // Par tere case mein hum 10 units ko hi 30% threshold maan kar chalte hain ya logic change krte hain
-                return p.stock < 10; 
-            });
-            document.getElementById('globalSearch').value = ""; // Clear search
-            filteredData = lowItems;
-            currentPage = 1;
-            renderAll();
-            document.getElementById('globalSearch').placeholder = "VIEWING LOW STOCK ITEMS...";
-        }
-
-        async function updateAlerts() {
-            const card = document.getElementById('lowStockCard');
-            const countText = document.getElementById('statLow').innerText;
-            const count = parseInt(countText);
-            
-            if (count > 0) {
-                card.classList.add('blink-danger');
-            } else {
-                card.classList.remove('blink-danger');
-            }
-        }
-            window.onload = refreshData;
+        window.onload = refreshData;
     </script>
 </body>
 </html>
-    
+    """
+    with open(html_path, "w") as f:
+        f.write(new_html)
+    print("✅ Logic & Analytics Restored. Sidebar Cleaned.")
+
+if __name__ == "__main__":
+    apply_final_fix()
