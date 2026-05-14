@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduStock Pro POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tab { display: none; } 
+        .active-tab { display: block; }
+        .active-btn { background-color: #4338ca !important; border-bottom: 4px solid #facc15; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans">
+    <nav class="bg-indigo-900 text-white shadow-2xl sticky top-0 z-50">
+        <div class="container mx-auto px-4 flex justify-between items-center h-16">
+            <h1 class="text-2xl font-black tracking-tighter text-yellow-400">EDUSTOCK PRO</h1>
+            <div class="flex h-full">
+                <button onclick="showTab('pos')" id="btn-pos" class="px-6 h-full font-bold hover:bg-indigo-800 transition">POS</button>
+                <button onclick="showTab('inventory')" id="btn-inventory" class="px-6 h-full font-bold hover:bg-indigo-800 transition">INVENTORY</button>
+                <button onclick="showTab('reports')" id="btn-reports" class="px-6 h-full font-bold hover:bg-indigo-800 transition">REPORTS</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 lg:p-8">
+        
+        <!-- POS TAB -->
+        <div id="pos" class="tab active-tab">
+            <div class="grid grid-cols-12 gap-6">
+                <div class="col-span-12 lg:col-span-8">
+                    <div class="bg-white p-4 rounded-xl shadow-sm mb-6">
+                        <input type="text" id="smartSearch" onkeyup="filterProducts()" placeholder="🔍 Search Class, Subject or Book Name..." class="w-full p-4 border-2 rounded-xl outline-none border-slate-200 focus:border-indigo-500 text-lg">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="productGrid">
+                        <!-- Products from DB will appear here -->
+                    </div>
+                </div>
+                
+                <div class="col-span-12 lg:col-span-4">
+                    <div class="bg-white rounded-2xl shadow-xl border-t-8 border-indigo-600 sticky top-24">
+                        <div class="p-6">
+                            <h2 class="font-black text-xl mb-4 flex justify-between">
+                                <span>Current Order</span>
+                                <span class="text-slate-400 text-sm" id="cartCount">0 Items</span>
+                            </h2>
+                            <div id="cartItems" class="space-y-3 mb-6 max-h-80 overflow-y-auto pr-2"></div>
+                            <div class="border-t-2 border-dashed pt-4">
+                                <div class="text-3xl font-black flex justify-between text-indigo-900">
+                                    <span>Total:</span>
+                                    <span>Rs. <span id="orderTotal">0</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 p-6 rounded-b-2xl space-y-4">
+                            <input type="text" id="custName" placeholder="Parent/Customer Name" class="w-full border-2 p-3 rounded-xl focus:border-indigo-400 outline-none">
+                            <input type="text" id="custPhone" placeholder="Contact Number" class="w-full border-2 p-3 rounded-xl focus:border-indigo-400 outline-none">
+                            <select id="payStatus" class="w-full border-2 p-3 rounded-xl bg-white font-bold text-slate-700">
+                                <option value="Paid text-green-600">✅ Paid (Cash/Card)</option>
+                                <option value="Pending text-red-600">⏳ Udhaar (Pending)</option>
+                            </select>
+                            <button onclick="completeSale()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-xl shadow-lg transition-all transform active:scale-95">COMPLETE SALE</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INVENTORY TAB -->
+        <div id="inventory" class="tab">
+            <div class="grid grid-cols-12 gap-8">
+                <div class="col-span-12 md:col-span-4">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                        <h2 class="font-black text-2xl mb-6 text-indigo-900">Add New Stock</h2>
+                        <form id="addProdForm" class="space-y-4">
+                            <input type="text" name="name" placeholder="Item Name (e.g. Science Book)" class="w-full border-2 p-3 rounded-xl" required>
+                            <div class="grid grid-cols-2 gap-4">
+                                <select name="cat" class="border-2 p-3 rounded-xl"><option>Book</option><option>Notebook</option><option>Stationery</option></select>
+                                <input type="text" name="s_class" placeholder="Class" class="border-2 p-3 rounded-xl" required>
+                            </div>
+                            <input type="text" name="sub" placeholder="Subject" class="w-full border-2 p-3 rounded-xl">
+                            <div class="grid grid-cols-2 gap-4">
+                                <input type="number" name="p_price" placeholder="Buy Price" class="border-2 p-3 rounded-xl" required>
+                                <input type="number" name="s_price" placeholder="Sell Price" class="border-2 p-3 rounded-xl" required>
+                            </div>
+                            <input type="number" name="stock" placeholder="Initial Stock Qty" class="w-full border-2 p-3 rounded-xl" required>
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold shadow-md transition">SAVE TO DATABASE</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-span-12 md:col-span-8 bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="font-black text-2xl mb-6">Stock Report</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 uppercase text-xs font-bold">
+                                <tr>
+                                    <th class="p-4 text-indigo-900">Product</th>
+                                    <th class="p-4">Class</th>
+                                    <th class="p-4">Price</th>
+                                    <th class="p-4">Stock</th>
+                                    <th class="p-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REPORTS TAB -->
+        <div id="reports" class="tab bg-white p-8 rounded-3xl shadow-xl">
+            <div class="flex justify-between items-center mb-10">
+                <h2 class="text-3xl font-black text-slate-800">Business Dashboard</h2>
+                <div id="dateTime" class="text-slate-400 font-mono"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-emerald-50 border-b-8 border-emerald-500 p-8 rounded-3xl">
+                    <p class="text-emerald-600 font-bold uppercase tracking-wider mb-2">Total Sales</p>
+                    <h3 id="repSales" class="text-4xl font-black text-emerald-900">Rs. 0</h3>
+                </div>
+                <div class="bg-blue-50 border-b-8 border-blue-500 p-8 rounded-3xl">
+                    <p class="text-blue-600 font-bold uppercase tracking-wider mb-2">Total Profit</p>
+                    <h3 id="repProfit" class="text-4xl font-black text-blue-900">Rs. 0</h3>
+                </div>
+                <div class="bg-rose-50 border-b-8 border-rose-500 p-8 rounded-3xl">
+                    <p class="text-rose-600 font-bold uppercase tracking-wider mb-2">Pending Udhaar</p>
+                    <h3 id="repUdhaar" class="text-4xl font-black text-rose-900">Rs. 0</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let inventory = [];
+        let cart = [];
+
+        function showTab(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active-tab'));
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-btn'));
+            document.getElementById(id).classList.add('active-tab');
+            document.getElementById('btn-' + id).classList.add('active-btn');
+            if(id === 'reports') loadReports();
+            if(id === 'inventory') renderInventoryTable();
+        }
+
+        async function refreshData() {
+            const res = await fetch('/api/inventory');
+            inventory = await res.json();
+            renderProducts(inventory);
+            renderInventoryTable();
+        }
+
+        function renderProducts(data) {
+            const grid = document.getElementById('productGrid');
+            if(data.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400">No items in database. Go to Inventory to add stock.</div>';
+                return;
+            }
+            grid.innerHTML = data.map(p => `
+                <div onclick="addToCart(${p.id})" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-500 hover:shadow-xl cursor-pointer transition-all group">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="bg-indigo-50 text-indigo-600 text-[10px] font-black px-2 py-1 rounded-md uppercase">${p.category}</span>
+                        <span class="${p.stock < 10 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'} text-[10px] font-bold px-2 py-1 rounded-md">Stock: ${p.stock}</span>
+                    </div>
+                    <h3 class="font-bold text-slate-800 group-hover:text-indigo-600 transition">${p.name}</h3>
+                    <p class="text-xs text-slate-400 mb-4">Class ${p.student_class} | ${p.subject || 'General'}</p>
+                    <div class="text-xl font-black text-slate-900 font-mono">Rs. ${p.selling_price}</div>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(id) {
+            const item = inventory.find(p => p.id === id);
+            if(item.stock <= 0) { alert("Out of Stock!"); return; }
+            cart.push({id: item.id, name: item.name, s_price: item.selling_price, p_price: item.purchase_price, qty: 1, type: 'single'});
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const list = document.getElementById('cartItems');
+            list.innerHTML = cart.map((i, idx) => `
+                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div>
+                        <div class="text-sm font-bold text-slate-800">${i.name}</div>
+                        <div class="text-xs text-slate-400 font-mono">Rs. ${i.s_price}</div>
+                    </div>
+                    <button onclick="cart.splice(${idx},1);updateCartUI()" class="h-8 w-8 rounded-full hover:bg-rose-100 text-rose-500 font-bold transition">×</button>
+                </div>
+            `).join('');
+            const total = cart.reduce((acc, i) => acc + i.s_price, 0);
+            document.getElementById('orderTotal').innerText = total;
+            document.getElementById('cartCount').innerText = cart.length + " Items";
+        }
+
+        async function completeSale() {
+            if(cart.length === 0) { alert("Cart is empty!"); return; }
+            const fd = new FormData();
+            fd.append('p_name', document.getElementById('custName').value || 'Walk-in Customer');
+            fd.append('p_phone', document.getElementById('custPhone').value || 'N/A');
+            fd.append('s_name', 'Student'); 
+            fd.append('items_json', JSON.stringify(cart));
+            fd.append('total', document.getElementById('orderTotal').innerText);
+            fd.append('status', document.getElementById('payStatus').value);
+
+            const res = await fetch('/api/checkout', {method: 'POST', body: fd});
+            const data = await res.json();
+            if(data.status === 'success') {
+                alert("SALE SUCCESS! Receipt: " + data.receipt);
+                cart = [];
+                updateCartUI();
+                refreshData();
+                document.getElementById('custName').value = '';
+                document.getElementById('custPhone').value = '';
+            }
+        }
+
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = inventory.map(p => `
+                <tr class="border-b border-slate-50 hover:bg-slate-50 transition">
+                    <td class="p-4 font-bold text-slate-700">${p.name}</td>
+                    <td class="p-4 text-slate-500">${p.student_class}</td>
+                    <td class="p-4 font-mono font-bold text-indigo-600">Rs. ${p.selling_price}</td>
+                    <td class="p-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold ${p.stock < 10 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}">
+                            ${p.stock} in stock
+                        </span>
+                    </td>
+                    <td class="p-4 text-xs font-bold text-slate-300">SYSTEM SYNCED</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadReports() {
+            const res = await fetch('/api/reports/summary');
+            const data = await res.json();
+            document.getElementById('repSales').innerText = "Rs. " + (data.sales || 0);
+            document.getElementById('repProfit').innerText = "Rs. " + (data.profit || 0);
+            document.getElementById('repUdhaar').innerText = "Rs. " + (data.udhaar || 0);
+        }
+
+        document.getElementById('addProdForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const res = await fetch('/api/products/add', {method: 'POST', body: fd});
+            if(res.ok) {
+                alert("Stock Added Successfully!");
+                e.target.reset();
+                refreshData();
+            }
+        };
+
+        function filterProducts() {
+            const val = document.getElementById('smartSearch').value.toLowerCase();
+            const filtered = inventory.filter(p => 
+                p.name.toLowerCase().includes(val) || 
+                p.student_class.toLowerCase().includes(val) ||
+                (p.subject && p.subject.toLowerCase().includes(val))
+            );
+            renderProducts(filtered);
+        }
+
+        // Initialize
+        document.getElementById('dateTime').innerText = new Date().toLocaleString();
+        showTab('pos');
+        refreshData();
+    </script>
+</body>
+</html>
