@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Detail | EduStock PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-900">
+    <div class="max-w-6xl mx-auto p-6">
+        <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+            <div>
+                <h1 class="text-4xl font-black uppercase tracking-tight">Product Detail</h1>
+                <p class="text-slate-600 mt-2">Full inventory insight for <strong>{{ product.name }}</strong>.</p>
+            </div>
+            <div class="space-x-2">
+                <a href="/" class="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-slate-800 transition"><i class="fas fa-arrow-left"></i> Back to Inventory</a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="bg-white rounded-3xl shadow-xl p-6 border border-slate-200">
+                <h2 class="font-black text-slate-900 uppercase text-sm tracking-wider mb-4">Product Overview</h2>
+                <div class="space-y-3 text-sm text-slate-700">
+                    <div><span class="font-black">Category:</span> {{ product.category }}</div>
+                    <div><span class="font-black">Class / Tag:</span> {{ product.student_class or product.tag or 'N/A' }}</div>
+                    <div><span class="font-black">Subject:</span> {{ product.subject or product.variation or 'N/A' }}</div>
+                    <div><span class="font-black">Buy Price:</span> Rs. {{ product.purchase_price }}</div>
+                    <div><span class="font-black">Sell Price:</span> Rs. {{ product.selling_price }}</div>
+                    <div><span class="font-black">Stock Available:</span> {{ product.stock }} pcs</div>
+                    <div><span class="font-black">Stock Value:</span> Rs. {{ (product.stock * product.selling_price) | round(2) }}</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-3xl shadow-xl p-6 border border-slate-200">
+                <h2 class="font-black text-slate-900 uppercase text-sm tracking-wider mb-4">Sales Snapshot</h2>
+                <div class="grid gap-4 text-slate-700">
+                    <div class="bg-emerald-50 p-4 rounded-3xl border border-emerald-200">
+                        <div class="text-xs uppercase font-black text-emerald-700">Units Sold</div>
+                        <div class="text-3xl font-black text-emerald-900">{{ analytics.total_units }}</div>
+                    </div>
+                    <div class="bg-indigo-50 p-4 rounded-3xl border border-indigo-200">
+                        <div class="text-xs uppercase font-black text-indigo-700">Revenue</div>
+                        <div class="text-3xl font-black text-indigo-900">Rs. {{ analytics.total_revenue | round(2) }}</div>
+                    </div>
+                    <div class="bg-amber-50 p-4 rounded-3xl border border-amber-200">
+                        <div class="text-xs uppercase font-black text-amber-700">Profit Estimate</div>
+                        <div class="text-3xl font-black text-amber-900">Rs. {{ analytics.profit | round(2) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-3xl shadow-xl p-6 border border-slate-200">
+                <h2 class="font-black text-slate-900 uppercase text-sm tracking-wider mb-4">Trend Details</h2>
+                <div class="space-y-4 text-slate-700 text-sm">
+                    <div class="bg-slate-50 p-4 rounded-3xl border border-slate-200">
+                        <div class="font-black uppercase text-[10px] tracking-wider text-slate-500">Sale Events</div>
+                        <div class="text-3xl font-black text-slate-900">{{ analytics.sale_count }}</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-3xl border border-slate-200">
+                        <div class="font-black uppercase text-[10px] tracking-wider text-slate-500">Last Sold</div>
+                        <div class="text-lg font-black text-slate-900">{{ analytics.last_sold or 'No sales yet' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-xl p-6 border border-slate-200">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h2 class="font-black text-2xl uppercase tracking-tight">Sale History</h2>
+                    <p class="text-slate-500 mt-1">Latest product sales and customer records.</p>
+                </div>
+                <div class="text-xs uppercase font-black text-slate-400">Showing up to 20 recent entries</div>
+            </div>
+
+            {% if sales %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-sm text-slate-700">
+                    <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] font-black">
+                        <tr>
+                            <th class="p-4">Receipt</th>
+                            <th class="p-4">Customer</th>
+                            <th class="p-4">Qty</th>
+                            <th class="p-4">Sell Price</th>
+                            <th class="p-4">Status</th>
+                            <th class="p-4">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="border-t border-slate-200">
+                        {% for sale in sales %}
+                        <tr class="border-b border-slate-100 hover:bg-slate-50">
+                            <td class="p-4 font-bold">{{ sale.receipt_number }}</td>
+                            <td class="p-4">
+                                <div>{{ sale.customer_name or 'Walk-in' }}</div>
+                                <div class="text-[11px] text-slate-400">{{ sale.customer_phone or 'N/A' }}</div>
+                            </td>
+                            <td class="p-4 font-black">{{ sale.qty }}</td>
+                            <td class="p-4">Rs. {{ sale.price }}</td>
+                            <td class="p-4 uppercase text-[11px] font-black {{ 'text-emerald-700' if sale.payment_status == 'Paid' else 'text-amber-700' }}">{{ sale.payment_status }}</td>
+                            <td class="p-4 text-slate-500">{{ sale.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="py-12 text-center text-slate-500 font-black uppercase">Koi sale history nahi mili is product ke liye.</div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

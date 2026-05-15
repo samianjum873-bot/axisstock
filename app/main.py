@@ -167,3 +167,54 @@ async def get_fast_stats(request: Request):
     }
     conn.close()
     return stats
+
+@app.get("/product/{product_id}")
+async def product_detail(request: Request, product_id: int):
+    if not is_logged_in(request): raise HTTPException(status_code=401)
+    conn = get_db()
+    product = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
+    if not product:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    analytics = conn.execute("""
+        SELECT
+            SUM(si.qty) as total_units,
+            SUM(si.qty * si.price) as total_revenue,
+            MAX(s.timestamp) as last_sold,
+            COUNT(*) as sale_count
+        FROM sale_items si
+        JOIN sales s ON si.sale_id = s.id
+        WHERE si.product_name = ?
+    """, (product['name'],)).fetchone()
+
+    sales = conn.execute("""
+        SELECT si.qty, si.price, s.receipt_number, s.payment_status, s.timestamp,
+               c.name as customer_name, c.phone as customer_phone
+        FROM sale_items si
+        JOIN sales s ON si.sale_id = s.id
+        LEFT JOIN customers c ON s.customer_id = c.id
+        WHERE si.product_name = ?
+        ORDER BY s.timestamp DESC
+        LIMIT 20
+    """, (product['name'],)).fetchall()
+
+    conn.close()
+
+    total_units = analytics['total_units'] if analytics['total_units'] else 0
+    total_revenue = analytics['total_revenue'] if analytics['total_revenue'] else 0
+    sale_count = analytics['sale_count'] if analytics['sale_count'] else 0
+    last_sold = analytics['last_sold']
+    profit = total_revenue - (total_units * product['purchase_price']) if total_units else 0
+
+    return templates.TemplateResponse(request, "product_detail.html", {
+        "product": product,
+        "sales": sales,
+        "analytics": {
+            "total_units": total_units,
+            "total_revenue": total_revenue,
+            "sale_count": sale_count,
+            "last_sold": last_sold,
+            "profit": profit
+        }
+    })

@@ -263,7 +263,13 @@
                     </div>
                     <table class="w-full text-left">
                         <thead class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase">
-                            <tr><th class="p-4">Item</th><th class="p-4">Category</th><th class="p-4">Specs</th><th class="p-4">Prices</th><th class="p-4 text-center">Stock</th></tr>
+                            <tr>
+                                <th class="p-4">Item Details</th>
+                                <th class="p-4">Category</th>
+                                <th class="p-4">Price</th>
+                                <th class="p-4 text-center">Stock</th>
+                                <th class="p-4 text-right">Action</th>
+                            </tr>
                         </thead>
                         <tbody id="inventoryTableBody" class="text-sm font-bold"></tbody>
                     </table>
@@ -283,6 +289,20 @@
                 <input type="hidden" name="mode" id="formMode" value="new">
                 <input type="hidden" name="prod_id" id="prod_id">
                 <input type="hidden" name="force_new" id="forceNew" value="false">
+                <input type="hidden" name="sub" id="hiddenSubject" value="">
+
+                <div id="existingAlert" class="hidden bg-amber-100 border-l-4 border-amber-500 p-4 rounded-2xl mb-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <strong class="text-amber-800 uppercase text-xs">Item already exists</strong>
+                            <p class="text-slate-600 text-[11px]">Update existing stock or create a new product entry.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="setEntryMode(false)" id="btnMerge" class="bg-amber-500 text-white text-[10px] font-black p-2 rounded-lg">ADD TO EXISTING</button>
+                            <button type="button" onclick="setEntryMode(true)" id="btnSeparate" class="bg-slate-200 text-slate-700 text-[10px] font-black p-2 rounded-lg">ADD SEPARATELY</button>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <select name="cat" id="catSelect" onchange="handleCatChange()" class="border-2 p-3 rounded-xl font-black bg-indigo-50 border-indigo-100">
@@ -291,18 +311,18 @@
                         <option value="Notebook">Notebook</option>
                     </select>
                     <div id="statItemNameField">
-                        <input type="text" name="name" id="statName" placeholder="Item Name (e.g. Sharpener)" class="w-full border-2 p-3 rounded-xl font-bold">
+                        <input type="text" name="name" id="statName" onkeyup="checkDuplicate()" placeholder="Item Name (e.g. Sharpener)" class="w-full border-2 p-3 rounded-xl font-bold">
                     </div>
                 </div>
 
                 <div id="stationeryFields" class="grid grid-cols-3 gap-2">
-                    <input type="text" name="tag" id="statBrand" placeholder="Brand" class="border p-2 rounded-lg text-sm font-bold">
-                    <input type="text" name="variation" id="statColor" placeholder="Color/Specs" class="border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="tag" id="statBrand" onkeyup="checkDuplicate()" placeholder="Brand" class="border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="variation" id="statColor" onkeyup="checkDuplicate()" placeholder="Color/Specs" class="border p-2 rounded-lg text-sm font-bold">
                 </div>
 
                 <div id="bookFields" class="hidden-field grid grid-cols-3 gap-2">
-                    <input type="text" name="s_class" id="bookClass" placeholder="Class (e.g. 10, 1)" class="border p-2 rounded-lg text-sm font-bold">
-                    <input type="text" name="sub" id="bookName" placeholder="Subject Name" class="col-span-2 border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="s_class" id="bookClass" onkeyup="checkDuplicate()" placeholder="Class (e.g. 10, 1)" class="border p-2 rounded-lg text-sm font-bold">
+                    <input type="text" name="name" id="bookName" onkeyup="checkDuplicate()" placeholder="Subject Name" class="col-span-2 border p-2 rounded-lg text-sm font-bold">
                 </div>
 
                 <div class="bg-indigo-900 p-4 rounded-2xl grid grid-cols-2 gap-3">
@@ -311,7 +331,7 @@
                     <input type="number" step="any" name="s_price" id="perItemSell" placeholder="Sell Price" class="p-3 rounded-lg font-black text-lg border-2 border-yellow-400">
                 </div>
 
-                <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase">Confirm Entry ✅</button>
+                <button id="submitBtn" type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase">Confirm Entry ✅</button>
             </form>
         </div>
     </div>
@@ -347,8 +367,10 @@
             document.getElementById('addModal').classList.toggle('active', show);
             if(!show) {
                 document.getElementById('addProdForm').reset();
+                document.getElementById('existingAlert').classList.add('hidden');
                 document.getElementById('formMode').value = 'new';
                 document.getElementById('forceNew').value = 'false';
+                setEntryMode(true);
             }
         }
 
@@ -356,11 +378,93 @@
             const cat = document.getElementById('catSelect').value;
             document.getElementById('stationeryFields').classList.toggle('hidden-field', cat !== 'Stationery');
             document.getElementById('bookFields').classList.toggle('hidden-field', cat === 'Stationery');
+            checkDuplicate();
+        }
+
+        async function checkDuplicate() {
+            const cat = document.getElementById('catSelect').value;
+            let query = '';
+
+            if(cat === 'Stationery') {
+                const name = document.getElementById('statName').value.trim();
+                const brand = document.getElementById('statBrand').value.trim();
+                const color = document.getElementById('statColor').value.trim();
+                const tag = `${brand} ${color}`.trim();
+                if(name.length < 2 || tag.length < 1) {
+                    document.getElementById('existingAlert').classList.add('hidden');
+                    setEntryMode(true);
+                    return;
+                }
+                query = `name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`;
+            } else {
+                const name = document.getElementById('bookName').value.trim();
+                const s_class = document.getElementById('bookClass').value.trim();
+                if(name.length < 2 || s_class.length < 1) {
+                    document.getElementById('existingAlert').classList.add('hidden');
+                    setEntryMode(true);
+                    return;
+                }
+                query = `name=${encodeURIComponent(name)}&s_class=${encodeURIComponent(s_class)}`;
+            }
+
+            try {
+                const res = await fetch(`/api/products/check-existing?${query}`);
+                const data = await res.json();
+                if(data && data.id) {
+                    document.getElementById('existingAlert').classList.remove('hidden');
+                    document.getElementById('prod_id').value = data.id;
+                    document.getElementById('formMode').value = 'update';
+                    setEntryMode(false);
+                } else {
+                    document.getElementById('existingAlert').classList.add('hidden');
+                    document.getElementById('prod_id').value = '';
+                    document.getElementById('formMode').value = 'new';
+                    setEntryMode(true);
+                }
+            } catch (error) {
+                document.getElementById('existingAlert').classList.add('hidden');
+                setEntryMode(true);
+            }
+        }
+
+        function setEntryMode(isNew) {
+            document.getElementById('forceNew').value = isNew ? 'true' : 'false';
+            document.getElementById('formMode').value = isNew ? 'new' : 'update';
+            const mergeBtn = document.getElementById('btnMerge');
+            const separateBtn = document.getElementById('btnSeparate');
+            const submitBtn = document.getElementById('submitBtn');
+
+            if(isNew) {
+                mergeBtn.className = 'bg-slate-200 text-slate-700 text-[10px] font-black p-2 rounded-lg';
+                separateBtn.className = 'bg-amber-500 text-white text-[10px] font-black p-2 rounded-lg';
+                submitBtn.innerText = 'SAVE AS NEW ENTRY ✅';
+                submitBtn.className = 'w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase';
+            } else {
+                mergeBtn.className = 'bg-amber-500 text-white text-[10px] font-black p-2 rounded-lg';
+                separateBtn.className = 'bg-slate-200 text-slate-700 text-[10px] font-black p-2 rounded-lg';
+                submitBtn.innerText = 'UPDATE EXISTING STOCK 🔄';
+                submitBtn.className = 'w-full bg-amber-500 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase';
+            }
         }
 
         async function submitInventoryForm(e) {
             e.preventDefault();
+            const cat = document.getElementById('catSelect').value;
             const formData = new FormData(document.getElementById('addProdForm'));
+
+            if(cat === 'Stationery') {
+                const name = document.getElementById('statName').value.trim();
+                const tag = `${document.getElementById('statBrand').value.trim()} ${document.getElementById('statColor').value.trim()}`.trim();
+                formData.set('name', name);
+                formData.set('tag', tag);
+            } else {
+                const name = document.getElementById('bookName').value.trim();
+                const s_class = document.getElementById('bookClass').value.trim();
+                formData.set('name', name);
+                formData.set('s_class', s_class);
+                formData.set('sub', name);
+            }
+
             const response = await fetch('/api/products/smart-add', { method: 'POST', body: formData });
             const data = await response.json();
             if(data.status === 'success') {
@@ -369,15 +473,29 @@
             }
         }
 
+        function openProductDetail(id) {
+            window.location.href = `/product/${id}`;
+        }
+
         function renderInventoryTable() {
             const body = document.getElementById('inventoryTableBody');
             body.innerHTML = inventory.map(item => `
                 <tr class="border-b hover:bg-slate-50">
-                    <td class="p-4">${item.name}</td>
-                    <td class="p-4"><span class="bg-slate-200 px-2 py-0.5 rounded text-[10px] uppercase font-black">${item.category}</span></td>
-                    <td class="p-4 text-xs text-slate-500">${item.category === 'Stationery' ? (item.tag + ' ' + item.variation) : ('Class ' + item.student_class + ' | ' + item.subject)}</td>
-                    <td class="p-4">Cost: ${item.purchase_price} | Sell: <span class="text-indigo-600 font-bold">${item.selling_price}</span></td>
-                    <td class="p-4 text-center ${item.stock < 10 ? 'text-rose-600 font-black bg-rose-50' : ''}">${item.stock}</td>
+                    <td class="p-4">
+                        <div class="font-black text-slate-900">${item.name}</div>
+                        <div class="text-[11px] text-slate-500 mt-1">${item.category === 'Stationery' ? item.tag + ' ' + item.variation : 'Class ' + item.student_class + ' • ' + item.subject}</div>
+                    </td>
+                    <td class="p-4"><span class="bg-slate-200 px-2 py-1 rounded text-[10px] uppercase font-black">${item.category}</span></td>
+                    <td class="p-4 text-slate-700 text-sm">
+                        <div><strong>Buy:</strong> Rs. ${item.purchase_price}</div>
+                        <div><strong>Sell:</strong> Rs. ${item.selling_price}</div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${item.stock === 0 ? 'bg-rose-100 text-rose-700' : item.stock < 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${item.stock} pcs</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button type="button" onclick="openProductDetail(${item.id})" class="bg-indigo-600 text-white text-[10px] font-black uppercase px-3 py-2 rounded-xl">View</button>
+                    </td>
                 </tr>
             `).join('');
         }
@@ -403,11 +521,21 @@
             const body = document.getElementById('inventoryTableBody');
             body.innerHTML = filtered.map(item => `
                 <tr class="border-b hover:bg-slate-50">
-                    <td class="p-4">${item.name}</td>
-                    <td class="p-4"><span class="bg-slate-200 px-2 py-0.5 rounded text-[10px] uppercase font-black">${item.category}</span></td>
-                    <td class="p-4 text-xs text-slate-500">${item.category === 'Stationery' ? (item.tag + ' ' + item.variation) : ('Class ' + item.student_class + ' | ' + item.subject)}</td>
-                    <td class="p-4">Cost: ${item.purchase_price} | Sell: ${item.selling_price}</td>
-                    <td class="p-4 text-center">${item.stock}</td>
+                    <td class="p-4">
+                        <div class="font-black text-slate-900">${item.name}</div>
+                        <div class="text-[11px] text-slate-500 mt-1">${item.category === 'Stationery' ? item.tag + ' ' + item.variation : 'Class ' + item.student_class + ' • ' + item.subject}</div>
+                    </td>
+                    <td class="p-4"><span class="bg-slate-200 px-2 py-1 rounded text-[10px] uppercase font-black">${item.category}</span></td>
+                    <td class="p-4 text-slate-700 text-sm">
+                        <div><strong>Buy:</strong> Rs. ${item.purchase_price}</div>
+                        <div><strong>Sell:</strong> Rs. ${item.selling_price}</div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${item.stock === 0 ? 'bg-rose-100 text-rose-700' : item.stock < 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${item.stock} pcs</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button type="button" onclick="openProductDetail(${item.id})" class="bg-indigo-600 text-white text-[10px] font-black uppercase px-3 py-2 rounded-xl">View</button>
+                    </td>
                 </tr>
             `).join('');
         }
