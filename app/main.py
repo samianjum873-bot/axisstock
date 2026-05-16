@@ -4,11 +4,88 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import sqlite3, random, string, json
 from datetime import datetime
+import os
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 DB_PATH = "app/database/school_store.db"
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database schema on app startup"""
+    if not os.path.exists("app/database"):
+        os.makedirs("app/database")
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Create tables if they don't exist
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            student_class TEXT,
+            subject TEXT,
+            purchase_price REAL NOT NULL,
+            selling_price REAL NOT NULL,
+            stock INTEGER NOT NULL,
+            tag TEXT,
+            variation TEXT
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER,
+            receipt_number TEXT UNIQUE NOT NULL,
+            total_amount REAL NOT NULL,
+            cash_paid REAL DEFAULT 0,
+            profit REAL DEFAULT 0,
+            payment_status TEXT DEFAULT 'Paid',
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(customer_id) REFERENCES customers(id)
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sale_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER,
+            product_name TEXT NOT NULL,
+            qty INTEGER NOT NULL,
+            price REAL NOT NULL,
+            FOREIGN KEY(sale_id) REFERENCES sales(id)
+        )
+    """)
+    
+    # Add cash_paid column if it doesn't exist (migration)
+    cursor.execute("PRAGMA table_info(sales)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'cash_paid' not in columns:
+        cursor.execute("ALTER TABLE sales ADD COLUMN cash_paid REAL DEFAULT 0")
+    
+    conn.commit()
+    conn.close()
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -22,12 +99,12 @@ def is_logged_in(request: Request):
 @app.get("/")
 async def index(request: Request):
     if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse(request, "pos.html", {"active_page": "pos"})
+    return templates.TemplateResponse(request, "pos_professional.html", {"active_page": "pos"})
 
 @app.get("/pos")
 async def pos_page(request: Request):
     if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse(request, "pos.html", {"active_page": "pos"})
+    return templates.TemplateResponse(request, "pos_professional.html", {"active_page": "pos"})
 
 @app.get("/inventory")
 async def inventory_page(request: Request):
@@ -126,7 +203,10 @@ async def checkout(
     p_phone: str = Form(...), 
     items_json: str = Form(...), 
     total: float = Form(...), 
-    status: str = Form(...)
+    status: str = Form(...),
+    p_father_name: str = Form(""),
+    p_class: str = Form(""),
+    cash_paid: float = Form(0)
 ):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db(); cursor = conn.cursor()
@@ -138,27 +218,62 @@ async def checkout(
         
         total_p_cost = 0
         for i in items:
-            prod = cursor.execute("SELECT purchase_price FROM products WHERE id = ?", (i['id'],)).fetchone()
-            cost = prod['purchase_price'] if prod else i.get('purchase_price', 0)
+            if 'id' in i and i['id']:
+                prod = cursor.execute("SELECT purchase_price FROM products WHERE id = ?", (i['id'],)).fetchone()
+                cost = prod['purchase_price'] if prod else float(i.get('purchase_price', 0))
+            else:
+                cost = float(i.get('purchase_price', 0))
             total_p_cost += float(cost) * int(i['qty'])
             
         profit = total - total_p_cost
         
-        cursor.execute("INSERT INTO sales (customer_id, receipt_number, total_amount, profit, payment_status) VALUES (?,?,?,?,?)",
-                       (c_id, receipt, total, profit, status))
+        cursor.execute("INSERT INTO sales (customer_id, receipt_number, total_amount, cash_paid, profit, payment_status) VALUES (?,?,?,?,?,?)",
+                       (c_id, receipt, total, float(cash_paid) if cash_paid else total, profit, status))
         sale_id = cursor.lastrowid
         
         for i in items:
+            selling_price = float(i.get('selling_price', 0))
             cursor.execute("INSERT INTO sale_items (sale_id, product_name, qty, price) VALUES (?,?,?,?)", 
-                           (sale_id, i['name'], i['qty'], i['selling_price']))
+                           (sale_id, i['name'], i['qty'], selling_price))
             cursor.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (i['qty'], i['id']))
             
         conn.commit()
-        return {"status": "success", "receipt": receipt}
+        return {"status": "success", "receipt": receipt, "sale_id": sale_id}
     except Exception as e:
         conn.rollback()
         return {"status": "error", "message": str(e)}
     finally: conn.close()
+
+@app.get("/api/receipt/{sale_id}")
+async def get_receipt(request: Request, sale_id: int):
+    if not is_logged_in(request): raise HTTPException(status_code=401)
+    conn = get_db()
+    
+    sale = conn.execute("SELECT * FROM sales WHERE id = ?", (sale_id,)).fetchone()
+    if not sale:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Sale not found")
+    
+    customer = conn.execute("SELECT * FROM customers WHERE id = ?", (sale['customer_id'],)).fetchone()
+    items = conn.execute("SELECT * FROM sale_items WHERE sale_id = ?", (sale_id,)).fetchall()
+    
+    conn.close()
+    
+    receipt_data = {
+        "sale_id": sale['id'],
+        "receipt_number": sale['receipt_number'],
+        "timestamp": sale['timestamp'],
+        "customer": customer,
+        "items": items,
+        "subtotal": sale['total_amount'],
+        "payment_status": sale['payment_status'],
+        "cash_paid": sale['cash_paid'] if 'cash_paid' in sale and sale['cash_paid'] else 0
+    }
+    
+    if sale['payment_status'] == 'Pending' or sale['payment_status'] == 'CreditSplit':
+        receipt_data["outstanding_balance"] = sale['total_amount'] - (receipt_data["cash_paid"] or 0)
+    
+    return receipt_data
 
 @app.get("/api/v2/analytics")
 async def get_fast_stats(request: Request):

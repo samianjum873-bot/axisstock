@@ -1,0 +1,680 @@
+{% extends "index.html" %}
+
+{% block title %}Professional Billing System{% endblock %}
+
+{% block header_title %}Professional Billing & Counter Service{% endblock %}
+
+{% block page_content %}
+<div class="space-y-6">
+    <!-- MAIN BILLING AREA -->
+    <div class="grid grid-cols-12 gap-6">
+        <!-- LEFT: PRODUCTS SECTION -->
+        <div class="col-span-12 lg:col-span-8 space-y-4">
+            <!-- Search & Filter -->
+            <div class="bg-white p-5 rounded-2xl shadow-md space-y-4">
+                <div class="flex gap-3">
+                    <div class="flex-1 relative">
+                        <input type="text" id="productSearch" onkeyup="filterProducts()" placeholder="🔍 Search items by name, category or brand..." 
+                               class="w-full border-2 border-indigo-200 p-4 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 text-sm font-bold">
+                    </div>
+                    <select id="categoryFilter" onchange="filterProducts()" class="border-2 border-indigo-200 p-4 rounded-xl outline-none focus:border-indigo-600 font-bold bg-indigo-50">
+                        <option value="">All Categories</option>
+                        <option value="Stationery">📝 Stationery</option>
+                        <option value="Book">📚 Books</option>
+                        <option value="Notebook">📖 Notebooks</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Products Grid -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h3 class="text-lg font-black text-indigo-900 mb-4 flex items-center gap-2">
+                    <i class="fas fa-shopping-bag text-indigo-600"></i> Available Products
+                </h3>
+                <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto">
+                    <div class="col-span-full text-center py-8 text-slate-400">
+                        <p class="text-sm">Loading products...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: SHOPPING CART & CHECKOUT -->
+        <div class="col-span-12 lg:col-span-4">
+            <div class="bg-white rounded-2xl shadow-lg border-t-4 border-indigo-600 sticky top-4 space-y-4">
+                <!-- Cart Header -->
+                <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white px-6 py-4 rounded-t-2xl">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-black uppercase tracking-tight">Shopping Cart</h2>
+                        <span id="cartCount" class="bg-yellow-400 text-indigo-900 px-3 py-1 rounded-full text-xs font-black">0</span>
+                    </div>
+                </div>
+
+                <!-- Cart Items -->
+                <div id="cartItems" class="px-6 space-y-3 max-h-64 overflow-y-auto">
+                    <p class="text-center text-slate-400 py-8 text-sm">Cart is empty. Add items to proceed.</p>
+                </div>
+
+                <!-- Cart Summary -->
+                <div class="px-6 space-y-3">
+                    <div class="border-t-2 border-slate-200 pt-3 space-y-2">
+                        <div class="flex justify-between text-sm font-bold text-slate-600">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">Rs. 0</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-bold text-slate-600">
+                            <span>Tax (0%):</span>
+                            <span id="taxAmount">Rs. 0</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 rounded-xl">
+                        <p class="text-xs uppercase font-bold text-slate-300 mb-1">Total Amount Due</p>
+                        <p class="text-3xl font-black font-mono">
+                            Rs. <span id="totalAmount">0</span>
+                        </p>
+                    </div>
+
+                    <!-- Clear Cart Button -->
+                    <button type="button" onclick="clearCart()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 rounded-lg text-xs uppercase transition">
+                        Clear Cart
+                    </button>
+
+                    <!-- Checkout Button -->
+                    <button type="button" onclick="proceedToCheckout()" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black py-4 rounded-xl text-sm uppercase shadow-lg transform active:scale-95 transition">
+                        <i class="fas fa-lock mr-2"></i> Proceed to Checkout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECENT TRANSACTIONS -->
+    <div class="bg-white rounded-2xl shadow-md p-6">
+        <h3 class="text-lg font-black text-indigo-900 mb-4 flex items-center gap-2">
+            <i class="fas fa-history text-indigo-600"></i> Recent Transactions
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-bold">
+                <thead class="bg-indigo-50 text-indigo-900 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3">Receipt #</th>
+                        <th class="px-4 py-3">Amount</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Date & Time</th>
+                    </tr>
+                </thead>
+                <tbody id="recentTransactions" class="divide-y text-slate-700">
+                    <tr><td colspan="4" class="px-4 py-4 text-center text-slate-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- CHECKOUT MODAL -->
+<div id="checkoutModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target === this) closeCheckout()">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+            <h2 class="text-2xl font-black uppercase tracking-tight">Customer Details & Checkout</h2>
+            <button type="button" onclick="closeCheckout()" class="text-2xl hover:text-yellow-300 transition">&times;</button>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- Customer Information Section -->
+            <div class="space-y-4">
+                <h3 class="text-sm font-black text-indigo-900 uppercase tracking-wider">Customer Information</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-1.5 uppercase">Student/Parent Name *</label>
+                        <input type="text" id="custName" placeholder="Enter name" class="w-full border-2 border-slate-300 p-3 rounded-lg outline-none focus:border-indigo-600 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-1.5 uppercase">Father/Guardian Name</label>
+                        <input type="text" id="custFatherName" placeholder="Optional" class="w-full border-2 border-slate-300 p-3 rounded-lg outline-none focus:border-indigo-600 font-bold">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-1.5 uppercase">Class/Grade</label>
+                        <input type="text" id="custClass" placeholder="Optional" class="w-full border-2 border-slate-300 p-3 rounded-lg outline-none focus:border-indigo-600 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-1.5 uppercase">Phone Number *</label>
+                        <input type="tel" id="custPhone" placeholder="0300-XXXXXXX" class="w-full border-2 border-slate-300 p-3 rounded-lg outline-none focus:border-indigo-600 font-bold">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl space-y-2">
+                <h3 class="text-sm font-black text-indigo-900 uppercase">Order Summary</h3>
+                <div id="checkoutItems" class="space-y-2 text-xs">
+                    <!-- Items will be populated here -->
+                </div>
+                <div class="border-t-2 border-indigo-200 pt-2 flex justify-between font-black text-indigo-900">
+                    <span>Total Amount:</span>
+                    <span>Rs. <span id="checkoutTotal">0</span></span>
+                </div>
+            </div>
+
+            <!-- Payment Method Section -->
+            <div class="space-y-4">
+                <h3 class="text-sm font-black text-indigo-900 uppercase tracking-wider">Payment Method</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" onclick="selectPaymentMethod('Paid')" id="btnCashPayment" 
+                            class="p-4 border-2 border-slate-300 rounded-lg font-black text-sm uppercase transition hover:border-green-500 hover:bg-green-50">
+                        <div class="text-2xl mb-1"><i class="fas fa-money-bill-wave text-green-600"></i></div>
+                        <div>Full Cash Payment</div>
+                        <div class="text-xs text-slate-500">Pay full amount</div>
+                    </button>
+                    <button type="button" onclick="selectPaymentMethod('Pending')" id="btnCreditPayment"
+                            class="p-4 border-2 border-slate-300 rounded-lg font-black text-sm uppercase transition hover:border-amber-500 hover:bg-amber-50">
+                        <div class="text-2xl mb-1"><i class="fas fa-credit-card text-amber-600"></i></div>
+                        <div>Credit/Udhaar</div>
+                        <div class="text-xs text-slate-500">Pay later</div>
+                    </button>
+                </div>
+
+                <!-- Credit Split Interface -->
+                <div id="creditInterface" class="hidden bg-amber-50 border-2 border-amber-300 p-4 rounded-xl space-y-3">
+                    <h4 class="text-xs font-black text-amber-900 uppercase">Payment Split Details</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-black text-slate-600 mb-1.5">Cash Paid Now (Rs.)</label>
+                            <input type="number" id="cashPaid" placeholder="0" onkeyup="calculateBalance()" 
+                                   class="w-full border-2 border-amber-200 p-3 rounded-lg outline-none focus:border-amber-600 font-bold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-black text-slate-600 mb-1.5">Outstanding Balance</label>
+                            <input type="number" id="balanceAmount" readonly placeholder="0"
+                                   class="w-full border-2 border-amber-200 p-3 rounded-lg bg-amber-100 font-black text-red-600 text-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkout Actions -->
+            <div class="border-t-2 border-slate-200 pt-4 flex gap-3">
+                <button type="button" onclick="closeCheckout()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black py-3 rounded-lg uppercase transition">
+                    Cancel
+                </button>
+                <button type="button" onclick="completeTransaction()" class="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black py-3 rounded-lg uppercase shadow-lg transition">
+                    <i class="fas fa-check mr-2"></i> Complete Transaction
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RECEIPT MODAL -->
+<div id="receiptModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div id="receiptContent" class="p-6 space-y-4">
+            <!-- Receipt will be generated here -->
+        </div>
+    </div>
+</div>
+
+<script>
+let allProducts = [];
+let cart = [];
+let currentPaymentMethod = 'Paid';
+
+// Initialize page
+async function initPage() {
+    await loadProducts();
+    await loadAnalytics();
+    await loadRecentTransactions();
+}
+
+// Load all products
+async function loadProducts() {
+    try {
+        const res = await fetch('/api/inventory');
+        allProducts = await res.json();
+        renderProducts();
+    } catch(e) {
+        console.error('Error loading products:', e);
+    }
+}
+
+// Render products grid
+function renderProducts() {
+    const filtered = filterProductList();
+    const grid = document.getElementById('productsGrid');
+    
+    if(filtered.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">No products found</p></div>';
+        return;
+    }
+
+    grid.innerHTML = filtered.map(p => `
+        <div class="border-2 border-slate-200 rounded-xl p-4 hover:border-indigo-600 hover:shadow-lg transition cursor-pointer" onclick="addToCart(${p.id}, '${p.name}', ${p.selling_price}, '${p.category}')">
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex-1">
+                    <h4 class="font-black text-sm text-slate-900">${p.name}</h4>
+                    <p class="text-xs text-slate-500 mt-0.5">${p.category}${p.tag ? ' • ' + p.tag : ''}</p>
+                </div>
+                <span class="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Stock: ${p.stock}</span>
+            </div>
+            <div class="border-t pt-2 flex justify-between items-center">
+                <div class="text-2xl font-black text-green-600">Rs. ${p.selling_price.toLocaleString()}</div>
+                <button type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg font-black text-xs transition" onclick="event.stopPropagation()">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Filter product list
+function filterProductList() {
+    const search = document.getElementById('productSearch').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    
+    return allProducts.filter(p => {
+        const matchSearch = !search || p.name.toLowerCase().includes(search) || (p.tag && p.tag.toLowerCase().includes(search)) || (p.subject && p.subject.toLowerCase().includes(search));
+        const matchCat = !category || p.category === category;
+        return matchSearch && matchCat && p.stock > 0;
+    });
+}
+
+// Filter and re-render
+function filterProducts() {
+    renderProducts();
+}
+
+// Add to cart
+function addToCart(id, name, selling_price, category) {
+    if(cart.find(i => i.id === id)) {
+        cart.find(i => i.id === id).qty++;
+    } else {
+        cart.push({id, name, selling_price, category, qty: 1});
+    }
+    updateCart();
+}
+
+// Remove from cart
+function removeFromCart(id) {
+    cart = cart.filter(i => i.id !== id);
+    updateCart();
+}
+
+// Update cart display
+function updateCart() {
+    const items = document.getElementById('cartItems');
+    const count = document.getElementById('cartCount');
+    
+    count.textContent = cart.reduce((s, i) => s + i.qty, 0) + ' items';
+    
+    if(cart.length === 0) {
+        items.innerHTML = '<p class="text-center text-slate-400 py-8 text-sm">Cart is empty. Add items to proceed.</p>';
+        updateCartTotals();
+        return;
+    }
+
+    items.innerHTML = cart.map(item => `
+        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div class="flex-1">
+                <p class="font-black text-sm text-slate-900">${item.name}</p>
+                <p class="text-xs text-slate-600">Rs. ${item.selling_price.toLocaleString()} x ${item.qty}</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="flex gap-1">
+                    <button type="button" onclick="updateQty(${item.id}, -1)" class="bg-slate-300 hover:bg-slate-400 text-slate-700 w-6 h-6 rounded font-black text-xs">−</button>
+                    <span class="w-6 text-center font-black text-sm">${item.qty}</span>
+                    <button type="button" onclick="updateQty(${item.id}, 1)" class="bg-slate-300 hover:bg-slate-400 text-slate-700 w-6 h-6 rounded font-black text-xs">+</button>
+                </div>
+                <button type="button" onclick="removeFromCart(${item.id})" class="text-red-600 hover:text-red-700 font-black text-xs ml-1">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    updateCartTotals();
+}
+
+// Update quantity
+function updateQty(id, delta) {
+    const item = cart.find(i => i.id === id);
+    if(item) {
+        item.qty += delta;
+        if(item.qty <= 0) removeFromCart(id);
+        else updateCart();
+    }
+}
+
+// Update cart totals
+function updateCartTotals() {
+    const subtotal = cart.reduce((s, i) => s + (i.selling_price * i.qty), 0);
+    const tax = 0;
+    const total = subtotal + tax;
+    
+    document.getElementById('subtotal').textContent = 'Rs. ' + subtotal.toLocaleString();
+    document.getElementById('taxAmount').textContent = 'Rs. ' + tax.toLocaleString();
+    document.getElementById('totalAmount').textContent = total.toLocaleString();
+}
+
+// Clear cart
+function clearCart() {
+    if(confirm('Clear entire cart?')) {
+        cart = [];
+        updateCart();
+    }
+}
+
+// Load analytics
+async function loadAnalytics() {
+    try {
+        const res = await fetch('/api/v2/analytics');
+        const stats = await res.json();
+        document.getElementById('statValue').textContent = 'Rs. ' + (stats.stock_value || 0).toLocaleString();
+        document.getElementById('statLow').textContent = (stats.low_stock || 0) + ' Items';
+        document.getElementById('statProfit').textContent = 'Rs. ' + (stats.profit_today || 0).toLocaleString();
+        document.getElementById('statUdhaar').textContent = 'Rs. ' + (stats.udhaar || 0).toLocaleString();
+    } catch(e) {
+        console.error('Error loading analytics:', e);
+    }
+}
+
+// Load recent transactions
+async function loadRecentTransactions() {
+    try {
+        const res = await fetch('/api/sales-recent');
+        const sales = await res.json();
+        const tbody = document.getElementById('recentTransactions');
+        
+        if(sales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-4 text-center text-slate-400">No transactions yet</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = sales.map(s => `
+            <tr class="hover:bg-indigo-50 transition">
+                <td class="px-4 py-3 text-blue-600 font-black">${s.receipt_number}</td>
+                <td class="px-4 py-3 font-black">Rs. ${s.total_amount.toLocaleString()}</td>
+                <td class="px-4 py-3">
+                    <span class="text-xs font-black px-2 py-1 rounded ${s.payment_status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">
+                        ${s.payment_status === 'Paid' ? '✅ PAID' : '⏳ CREDIT'}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-slate-600 text-xs">${new Date(s.timestamp).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        console.error('Error loading transactions:', e);
+    }
+}
+
+// Proceed to checkout
+function proceedToCheckout() {
+    if(cart.length === 0) {
+        alert('Please add items to cart first!');
+        return;
+    }
+    
+    if(!document.getElementById('custName').value) {
+        document.getElementById('custName').focus();
+    }
+    
+    const modal = document.getElementById('checkoutModal');
+    modal.classList.remove('hidden');
+    
+    // Populate checkout summary
+    const items = cart.map(i => `<div class="flex justify-between text-xs"><span>${i.name} x${i.qty}</span><span>Rs. ${(i.selling_price * i.qty).toLocaleString()}</span></div>`).join('');
+    document.getElementById('checkoutItems').innerHTML = items;
+    document.getElementById('checkoutTotal').textContent = cart.reduce((s, i) => s + (i.selling_price * i.qty), 0).toLocaleString();
+}
+
+// Close checkout modal
+function closeCheckout() {
+    document.getElementById('checkoutModal').classList.add('hidden');
+}
+
+// Select payment method
+function selectPaymentMethod(method) {
+    currentPaymentMethod = method;
+    
+    document.getElementById('btnCashPayment').classList.remove('border-green-500', 'bg-green-50');
+    document.getElementById('btnCreditPayment').classList.remove('border-amber-500', 'bg-amber-50');
+    
+    if(method === 'Paid') {
+        document.getElementById('btnCashPayment').classList.add('border-green-500', 'bg-green-50');
+        document.getElementById('creditInterface').classList.add('hidden');
+    } else {
+        document.getElementById('btnCreditPayment').classList.add('border-amber-500', 'bg-amber-50');
+        document.getElementById('creditInterface').classList.remove('hidden');
+        document.getElementById('cashPaid').value = 0;
+        calculateBalance();
+    }
+}
+
+// Calculate balance for credit
+function calculateBalance() {
+    const total = cart.reduce((s, i) => s + (i.selling_price * i.qty), 0);
+    const paid = parseFloat(document.getElementById('cashPaid').value) || 0;
+    const balance = Math.max(0, total - paid);
+    document.getElementById('balanceAmount').value = balance.toLocaleString();
+}
+
+// Complete transaction
+async function completeTransaction() {
+    const name = document.getElementById('custName').value.trim();
+    const phone = document.getElementById('custPhone').value.trim();
+    
+    if(!name) {
+        alert('Please enter customer name');
+        document.getElementById('custName').focus();
+        return;
+    }
+    if(!phone) {
+        alert('Please enter phone number');
+        document.getElementById('custPhone').focus();
+        return;
+    }
+    
+    if(cart.length === 0) {
+        alert('Cart is empty!');
+        return;
+    }
+    
+    // Validate cart items have all required fields
+    for(let item of cart) {
+        if(!item.id || !item.name || !item.selling_price || !item.qty) {
+            alert('Invalid cart item detected: ' + item.name);
+            return;
+        }
+    }
+    
+    const total = cart.reduce((s, i) => s + (i.selling_price * i.qty), 0);
+    const itemsJson = JSON.stringify(cart);
+    
+    const formData = new FormData();
+    formData.append('p_name', name);
+    formData.append('p_phone', phone);
+    formData.append('p_father_name', document.getElementById('custFatherName').value);
+    formData.append('p_class', document.getElementById('custClass').value);
+    formData.append('items_json', itemsJson);
+    formData.append('total', total);
+    formData.append('status', currentPaymentMethod);
+    formData.append('cash_paid', currentPaymentMethod === 'Pending' ? (parseFloat(document.getElementById('cashPaid').value) || 0) : total);
+    
+    try {
+        const res = await fetch('/api/checkout', {method: 'POST', body: formData});
+        const data = await res.json();
+        
+        if(data.status === 'success') {
+            closeCheckout();
+            showReceipt(data.sale_id, name, phone);
+            cart = [];
+            updateCart();
+            loadRecentTransactions();
+            loadAnalytics();
+        } else {
+            alert('Transaction Error: ' + (data.message || 'Please check all fields and try again'));
+            console.error('Error response:', data);
+        }
+    } catch(e) {
+        alert('Network Error: ' + e.message);
+        console.error('Transaction error:', e);
+    }
+}
+
+// Show receipt
+async function showReceipt(saleId, custName, custPhone) {
+    try {
+        const res = await fetch(`/api/receipt/${saleId}`);
+        const receipt = await res.json();
+        
+        const total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+        const cashPaid = currentPaymentMethod === 'Pending' ? (parseFloat(document.getElementById('cashPaid').value) || 0) : total;
+        const balance = currentPaymentMethod === 'Pending' ? (total - cashPaid) : 0;
+        const totalItems = cart.reduce((s, i) => s + i.qty, 0);
+        
+        let receiptHTML = `
+        <div class="text-center space-y-2 mb-6 pb-4 border-b-2">
+            <h1 class="text-2xl font-black text-indigo-900">AXISSTOCK</h1>
+            <p class="text-xs font-bold text-slate-600">Professional Education Store</p>
+            <p class="text-xs text-slate-500">Location: Your Store Address</p>
+        </div>
+        
+        <div class="space-y-4 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <p class="text-slate-500 uppercase font-bold">Receipt #</p>
+                    <p class="font-black text-lg text-blue-600">${receipt.receipt_number}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-slate-500 uppercase font-bold">Date & Time</p>
+                    <p class="font-bold">${new Date(receipt.timestamp).toLocaleString()}</p>
+                </div>
+            </div>
+            
+            <div class="bg-slate-50 p-3 rounded-lg space-y-1">
+                <p class="font-black">CUSTOMER DETAILS</p>
+                <p>Name: <span class="font-bold">${custName}</span></p>
+                <p>Phone: <span class="font-bold">${custPhone}</span></p>
+            </div>
+            
+            <div class="space-y-2">
+                <p class="font-black uppercase bg-indigo-100 px-2 py-1 rounded">Items Purchased</p>
+                <div class="divide-y">
+                    ${cart.map(item => `
+                        <div class="flex justify-between py-1">
+                            <div>
+                                <p class="font-bold">${item.name}</p>
+                                <p class="text-slate-500">Rs. ${item.selling_price.toLocaleString()} x ${item.qty}</p>
+                            </div>
+                            <p class="font-black">Rs. ${(item.selling_price * item.qty).toLocaleString()}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="border-t-2 border-b-2 py-2 space-y-1 font-bold">
+                <div class="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>Rs. ${total.toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Tax:</span>
+                    <span>Rs. 0</span>
+                </div>
+                <div class="flex justify-between text-lg text-indigo-900 font-black">
+                    <span>TOTAL:</span>
+                    <span>Rs. ${total.toLocaleString()}</span>
+                </div>
+            </div>
+            
+            <div class="${currentPaymentMethod === 'Paid' ? 'bg-green-100' : 'bg-amber-100'} p-3 rounded-lg space-y-1">
+                <p class="font-black uppercase text-${currentPaymentMethod === 'Paid' ? 'green' : 'amber'}-900">Payment Status</p>
+                ${currentPaymentMethod === 'Paid' ? `
+                    <p class="text-sm font-black text-green-700">✅ CASH PAID IN FULL</p>
+                    <p class="text-xs text-green-600">Amount Paid: Rs. ${total.toLocaleString()}</p>
+                ` : `
+                    <p class="text-sm font-black text-amber-700">⏳ CREDIT/UDHAAR</p>
+                    <p class="text-xs text-amber-600">Cash Paid: Rs. ${cashPaid.toLocaleString()}</p>
+                    <p class="text-xs font-black text-red-600">Outstanding: Rs. ${balance.toLocaleString()}</p>
+                `}
+            </div>
+            
+            <div class="text-center pt-4 space-y-2 border-t-2">
+                <p class="text-xs text-slate-500">Thank you for shopping with us!</p>
+                <p class="text-xs font-bold text-slate-600">Please visit again</p>
+            </div>
+        </div>
+        
+        <div class="flex gap-2 mt-6">
+            <button type="button" onclick="printReceipt()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-2 rounded-lg text-sm uppercase transition">
+                <i class="fas fa-print mr-1"></i> Print
+            </button>
+            <button type="button" onclick="downloadReceipt('${receipt.receipt_number}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-2 rounded-lg text-sm uppercase transition">
+                <i class="fas fa-download mr-1"></i> Download
+            </button>
+            <button type="button" onclick="closeReceipt()" class="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-black py-2 rounded-lg text-sm uppercase transition">
+                Done
+            </button>
+        </div>
+        `;
+        
+        document.getElementById('receiptContent').innerHTML = receiptHTML;
+        document.getElementById('receiptModal').classList.remove('hidden');
+    } catch(e) {
+        console.error('Error showing receipt:', e);
+        alert('Error generating receipt');
+    }
+}
+
+// Print receipt
+function printReceipt() {
+    window.print();
+}
+
+// Download receipt as text
+function downloadReceipt(receiptNo) {
+    const content = document.getElementById('receiptContent').innerText;
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+    element.setAttribute('download', `Receipt_${receiptNo}.txt`);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+}
+
+// Close receipt modal
+function closeReceipt() {
+    document.getElementById('receiptModal').classList.add('hidden');
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initPage);
+
+// Refresh analytics periodically
+setInterval(loadAnalytics, 30000);
+</script>
+
+<!-- PRINT STYLES -->
+<style>
+    @media print {
+        body {
+            background: white;
+        }
+        .hidden { display: none !important; }
+        #receiptModal {
+            position: static;
+            background: none;
+        }
+        #receiptModal > div {
+            box-shadow: none;
+            max-width: 100%;
+        }
+        .flex.gap-2.mt-6 {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}

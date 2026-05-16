@@ -48,6 +48,8 @@
         </header>
 
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- Analytics Dashboard - Only show on POS page -->
+            {% if active_page == 'pos' %}
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-indigo-500">
                     <p class="text-[10px] font-black text-slate-400 uppercase">Total Stock Value</p>
@@ -66,6 +68,7 @@
                     <h3 id="statUdhaar" class="text-lg font-black text-amber-700 italic">Rs. 0</h3>
                 </div>
             </div>
+            {% endif %}
 
             {% block page_content %}{% endblock %}
         </div>
@@ -134,13 +137,17 @@
         async function refreshData() {
             const res = await fetch('/api/inventory');
             inventory = await res.json();
-            const statRes = await fetch('/api/v2/analytics');
-            const stats = await statRes.json();
+            
+            // Only load analytics if on POS page (analytics elements exist)
+            if (document.getElementById('statValue')) {
+                const statRes = await fetch('/api/v2/analytics');
+                const stats = await statRes.json();
 
-            document.getElementById('statValue').innerText = `Rs. ${stats.stock_value.toLocaleString()}`;
-            document.getElementById('statLow').innerText = `${stats.low_stock} Items`;
-            document.getElementById('statProfit').innerText = `Rs. ${stats.profit_today.toLocaleString()}`;
-            document.getElementById('statUdhaar').innerText = `Rs. ${stats.udhaar.toLocaleString()}`;
+                document.getElementById('statValue').innerText = `Rs. ${stats.stock_value.toLocaleString()}`;
+                document.getElementById('statLow').innerText = `${stats.low_stock} Items`;
+                document.getElementById('statProfit').innerText = `Rs. ${stats.profit_today.toLocaleString()}`;
+                document.getElementById('statUdhaar').innerText = `Rs. ${stats.udhaar.toLocaleString()}`;
+            }
 
             if (document.getElementById('inventoryTableBody')) renderInventoryTable();
             if (document.getElementById('wizardCategory')) renderWizardProducts();
