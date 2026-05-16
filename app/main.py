@@ -21,7 +21,6 @@ async def startup_event():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Create tables if they don't exist
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +44,6 @@ async def startup_event():
         )
     """)
     
-    # Sales/Transactions Table - Perfectly aligned with Sami's DB Schema
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,7 +54,7 @@ async def startup_event():
             student_class TEXT NOT NULL,
             phone_no TEXT NOT NULL,
             address TEXT,
-            sale_type TEXT NOT NULL, -- 'Single Item' or 'Full Bundle'
+            sale_type TEXT NOT NULL,
             total_amount REAL NOT NULL,
             cash_paid REAL DEFAULT 0,
             profit REAL DEFAULT 0,
@@ -110,7 +108,7 @@ async def login_page(request: Request):
 @app.post("/login")
 async def do_login(response: Response, username: str = Form(...), password: str = Form(...)):
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
+    user = conn.execute("SELECT * October FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
     conn.close()
     if user:
         resp = RedirectResponse(url="/", status_code=303)
@@ -430,14 +428,37 @@ async def view_customer_detailed_profile(request: Request, cnic_id: str):
         raise HTTPException(status_code=404, detail="Customer Profile Data Not Found")
         
     history = conn.execute("""
-        SELECT receipt_number, total_amount, cash_paid, payment_status, sale_type, timestamp 
+        SELECT id, receipt_number, total_amount, cash_paid, profit, payment_status, sale_type, timestamp 
         FROM sales 
         WHERE cnic = ? 
         ORDER BY id DESC
     """, (cnic_id,)).fetchall()
     
+    # Advanced Item Breakdown Mapping specifically for Customer Invoices Ledger
+    sale_ids = [row['id'] for row in history]
+    items_map = {}
+    total_items_count = 0
+    net_profit = 0
+    
+    if sale_ids:
+        placeholders = ",".join("?" for _ in sale_ids)
+        items_data = conn.execute(f"""
+            SELECT si.sale_id, si.product_name, si.qty, si.price, p.category 
+            FROM sale_items si
+            LEFT JOIN products p ON si.product_name = p.name
+            WHERE si.sale_id IN ({placeholders})
+        """, sale_ids).fetchall()
+        
+        for item in items_data:
+            s_id = item['sale_id']
+            if s_id not in items_map:
+                items_map[s_id] = []
+            items_map[s_id].append(item)
+            total_items_count += item['qty']
+
     total_orders = len(history)
     total_spent = sum(row['total_amount'] for row in history)
+    total_profit = sum(row['profit'] for row in history if row['profit'])
     
     total_pending = 0
     for row in history:
@@ -447,13 +468,16 @@ async def view_customer_detailed_profile(request: Request, cnic_id: str):
     stats_block = {
         "total_orders": total_orders,
         "total_spent": total_spent,
-        "total_pending": total_pending
+        "total_pending": total_pending,
+        "total_profit": total_profit,
+        "total_items": total_items_count
     }
     
     conn.close()
     return templates.TemplateResponse(request, "customer_profile.html", {
-        "active_page": "customer_detail",
+        "active_page": "customers",
         "profile": profile,
         "history": history,
-        "stats": stats_block
+        "stats": stats_block,
+        "items_map": json.dumps(items_map)
     })

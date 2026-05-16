@@ -1,11 +1,14 @@
 {% extends "index.html" %}
 
 {% block title %}Customer Profile | AXIS{% endblock %}
-{% block header_title %}Customer Dossier Profile Ledger{% endblock %}
+{% block header_title %}Customer Profile Ledger{% endblock %}
 
 {% block page_content %}
-<div class="space-y-6 text-slate-900">
-    <!-- Back to Directory -->
+<!-- Include Chart.js Library via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="space-y-6 text-slate-900 relative">
+    <!-- Navigation Back Link -->
     <div class="flex justify-between items-center">
         <a href="/customers" class="text-xs font-black text-slate-500 hover:text-indigo-600 uppercase tracking-wider flex items-center gap-2 transition">
             <i class="fas fa-arrow-left"></i> Back to Directory List
@@ -13,91 +16,117 @@
         <span class="text-[11px] font-black bg-slate-200/80 text-slate-700 px-3 py-1 rounded-full uppercase font-mono">CNIC ID: {{ profile.cnic }}</span>
     </div>
 
-    <!-- Customer Top Profile Card Specs -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-6 relative overflow-hidden">
-        <div class="md:col-span-1 flex flex-col justify-center items-center md:items-start md:border-r border-slate-100 pr-4">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl font-black shadow-lg mb-3 shadow-indigo-100">
-                {{ profile.student_name[0]|upper }}
-            </div>
-            <h3 class="text-xl font-black text-slate-900 tracking-tight">{{ profile.student_name }}</h3>
+    <!-- Customer Profile Header -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-1 flex flex-col justify-center">
+            <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ profile.student_name }}</h3>
             <span class="text-xs text-slate-400 font-bold mt-0.5">S/O {{ profile.father_name }}</span>
+            <div class="mt-4">
+                <button onclick="toggleGraphView()" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition font-black text-[11px] uppercase tracking-wider">
+                    <i class="fas fa-chart-line"></i> Toggle Analytics Chart
+                </button>
+            </div>
         </div>
 
-        <div class="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold self-center">
+        <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold self-center">
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Registered Phone</span>
                 <span class="text-slate-800 font-mono text-sm block mt-1">{{ profile.phone_no }}</span>
             </div>
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Academic Grade Link</span>
+                <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Academic Grade</span>
                 <span class="text-indigo-600 text-sm block font-black mt-1">Class {{ profile.student_class }}</span>
             </div>
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Current Account Address</span>
+                <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Address</span>
                 <span class="text-slate-700 truncate block mt-1" title="{{ profile.address if profile.address else 'N/A' }}">{{ profile.address if profile.address else "N/A" }}</span>
             </div>
         </div>
     </div>
 
-    <!-- Business Volume and Stats Breakdown -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-            <div>
-                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Total Orders Placed</span>
-                <span class="text-2xl font-black tracking-tight text-slate-900 mt-1 block">{{ stats.total_orders }}</span>
-            </div>
-            <div class="w-11 h-11 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center text-base"><i class="fas fa-shopping-cart"></i></div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-            <div>
-                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Gross Revenue Contribution</span>
-                <span class="text-2xl font-black tracking-tight text-emerald-600 mt-1 block">Rs. {{ "{:,.0f}".format(stats.total_spent) }}</span>
-            </div>
-            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-base"><i class="fas fa-coins"></i></div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-            <div>
-                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Unpaid Udhaar / Balance</span>
-                <span class="text-2xl font-black tracking-tight {% if stats.total_pending > 0 %}text-rose-600{% else %}text-slate-400{% endif %} mt-1 block">Rs. {{ "{:,.0f}".format(stats.total_pending) }}</span>
-            </div>
-            <div class="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-base"><i class="fas fa-hand-holding-usd"></i></div>
+    <!-- Chart.js Graph Wrapper -->
+    <div id="graphWrapper" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Purchase Order Timeline Analytics</h4>
+        <div class="w-full relative" style="height: 220px;">
+            <canvas id="buyingChart"></canvas>
         </div>
     </div>
 
-    <!-- Customer Purchase History Logs -->
+    <!-- Analytics Metrics -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Total Spent</span>
+                <span class="text-xl font-black tracking-tight text-emerald-600 mt-0.5 block">Rs. {{ "{:,.0f}".format(stats.total_spent) }}</span>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm"><i class="fas fa-wallet"></i></div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Pending Balance</span>
+                <span class="text-xl font-black tracking-tight {% if stats.total_pending > 0 %}text-rose-600{% else %}text-slate-400{% endif %} mt-0.5 block">Rs. {{ "{:,.0f}".format(stats.total_pending) }}</span>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm"><i class="fas fa-hand-holding-usd"></i></div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Net Store Profit</span>
+                <span class="text-xl font-black tracking-tight text-indigo-600 mt-0.5 block">Rs. {{ "{:,.0f}".format(stats.total_profit) }}</span>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm"><i class="fas fa-chart-line"></i></div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Total Product Units</span>
+                <span class="text-xl font-black tracking-tight text-slate-900 mt-0.5 block">{{ stats.total_items }} Units</span>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-sm"><i class="fas fa-box"></i></div>
+        </div>
+    </div>
+
+    <!-- Main Invoices Table -->
     <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
         <div class="p-4 bg-slate-50 border-b border-slate-100">
-            <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Complete Invoices Procurement Ledger</h4>
+            <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Invoices Procurement History</h4>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-white border-b border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-wider">
-                        <th class="p-4">Receipt Num</th>
-                        <th class="p-4">Date & Time Log</th>
-                        <th class="p-4">Sale Module</th>
-                        <th class="p-4 text-right">Invoice Amount</th>
-                        <th class="p-4 text-right">Cash Paid</th>
+                        <th class="p-4 w-[45%]">Purchased Items & Category Breakdown</th>
+                        <th class="p-4">Date Log</th>
+                        <th class="p-4 text-right">Total Net</th>
                         <th class="p-4 text-center">Status</th>
+                        <th class="p-4 text-center">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 font-bold text-xs text-slate-600">
-                    {% for item in history %}
-                    <tr class="hover:bg-slate-50/50 transition-colors">
-                        <td class="p-4 text-indigo-600 font-black font-mono">{{ item.receipt_number }}</td>
-                        <td class="p-4 text-slate-500 font-medium">{{ item.timestamp }}</td>
+                    {% for row in history %}
+                    <tr class="hover:bg-slate-50/40 transition-colors">
                         <td class="p-4">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wide bg-slate-100 border text-slate-600">
-                                {{ item.sale_type }}
-                            </span>
+                            <div class="flex flex-col space-y-1">
+                                <div id="summary-items-{{ row.id }}" class="text-slate-900 font-black text-sm tracking-tight truncate max-w-lg">
+                                    <!-- Populated via script -->
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-mono">Receipt: {{ row.receipt_number }} &bull; Type: {{ row.sale_type }}</span>
+                            </div>
                         </td>
-                        <td class="p-4 text-right text-slate-900 font-black">Rs. {{ "{:,.0f}".format(item.total_amount) }}</td>
-                        <td class="p-4 text-right text-slate-700">Rs. {{ "{:,.0f}".format(item.cash_paid) }}</td>
+                        <td class="p-4 text-slate-500 font-medium">{{ row.timestamp }}</td>
+                        <td class="p-4 text-right text-slate-900 font-black">Rs. {{ "{:,.0f}".format(row.total_amount) }}</td>
                         <td class="p-4 text-center">
-                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider {% if item.payment_status == 'Paid' %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-800{% endif %}">
-                                {{ item.payment_status }}
+                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider {% if row.payment_status == 'Paid' %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                {{ row.payment_status }}
                             </span>
                         </td>
+                        <td class="p-4 text-center">
+                            <button onclick='openInvoiceModal({{ row | tojson }}, {{ row.id }})' class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all font-black uppercase text-[10px]">
+                                <i class="fas fa-expand"></i> View Detail
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="p-8 text-center text-slate-400 font-medium italic">No ledger transaction context detected.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -105,4 +134,203 @@
         </div>
     </div>
 </div>
+
+<!-- OVERLAY SPLIT DETAIL WINDOW MODAL (Picture View Style) -->
+<div id="invoiceModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0">
+    <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-slate-100 transform scale-95 transition-transform duration-300">
+        <!-- Modal Header -->
+        <div class="bg-slate-900 p-5 text-white flex justify-between items-center">
+            <div>
+                <h3 class="text-base font-black tracking-tight" id="modalReceiptNum">Invoice Ledger Breakup</h3>
+                <p class="text-[11px] text-slate-400 font-mono font-bold mt-0.5" id="modalTimestamp"></p>
+            </div>
+            <button onclick="closeInvoiceModal()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition text-sm">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- Modal Body Content -->
+        <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+            <!-- Items Detail Block -->
+            <div class="space-y-3">
+                <h5 class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Product Line Breakdown</h5>
+                <div id="modalItemsContainer" class="space-y-2">
+                    <!-- Injected rows via JS -->
+                </div>
+            </div>
+
+            <!-- Financial Split Breakdown Block -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                <h5 class="text-[11px] font-black text-slate-600 uppercase tracking-wider border-b pb-1">Payment & Statement Summary</h5>
+                <div class="grid grid-cols-2 gap-4 text-xs font-bold">
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">TOTAL GROSS BILL</span>
+                        <span class="text-base font-black text-slate-900" id="modalTotalBill"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">CASH PAID</span>
+                        <span class="text-base font-black text-emerald-600" id="modalCashPaid"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">TRANSACTION TYPE</span>
+                        <span class="text-slate-800 uppercase" id="modalSaleType"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">OUTSTANDING BALANCE</span>
+                        <span class="text-base font-black" id="modalOutstanding"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const itemsMap = JSON.parse('{{ items_map | safe }}');
+    const procurementHistory = [];
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Map Item Summaries into Main Table Rows
+        Object.keys(itemsMap).forEach(saleId => {
+            const items = itemsMap[saleId];
+            const summaryEl = document.getElementById(`summary-items-${saleId}`);
+            if (items && items.length > 0 && summaryEl) {
+                summaryEl.innerHTML = items.map(i => `${i.product_name} (${i.qty})`).join(", ");
+            }
+        });
+
+        // Parse Data for Chart.js
+        {% for row in history %}
+            procurementHistory.push({
+                date: "{{ row.timestamp }}".split(" ")[0],
+                amount: parseFloat("{{ row.total_amount }}")
+            });
+        {% endfor %}
+        
+        renderChartJS();
+    });
+
+    // ChartJS Engine Implementation
+    let myChartInstance = null;
+    function renderChartJS() {
+        const ctx = document.getElementById('buyingChart');
+        if(!ctx || procurementHistory.length === 0) return;
+
+        const chartData = {};
+        procurementHistory.slice().reverse().forEach(p => {
+            chartData[p.date] = (chartData[p.date] || 0) + p.amount;
+        });
+
+        myChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Object.keys(chartData),
+                datasets: [{
+                    label: 'Buying Pattern (Rs)',
+                    data: Object.values(chartData),
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.05)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#4f46e5',
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: '#f1f5f9' }, ticks: { font: { weight: 'bold', size: 10 } } },
+                    x: { grid: { display: false }, ticks: { font: { weight: 'bold', size: 10 } } }
+                }
+            }
+        });
+    }
+
+    function toggleGraphView() {
+        const wrapper = document.getElementById('graphWrapper');
+        wrapper.classList.toggle('hidden');
+    }
+
+    // Modal Manager Logic (Picture Style overlay popup)
+    function openInvoiceModal(saleRow, saleId) {
+        const modal = document.getElementById('invoiceModal');
+        const modalBox = modal.querySelector('.transform');
+        
+        // Populate base stats data
+        document.getElementById('modalReceiptNum').innerText = `Receipt: ${saleRow.receipt_number}`;
+        document.getElementById('modalTimestamp').innerText = `Executed On: ${saleRow.timestamp} (${saleRow.payment_status})`;
+        document.getElementById('modalTotalBill').innerText = `Rs. ${parseFloat(saleRow.total_amount).toLocaleString()}`;
+        document.getElementById('modalCashPaid').innerText = `Rs. ${parseFloat(saleRow.cash_paid || 0).toLocaleString()}`;
+        document.getElementById('modalSaleType').innerText = saleRow.sale_type;
+
+        // Calculate credits/udhaar status cleanly
+        const total = parseFloat(saleRow.total_amount);
+        const paid = parseFloat(saleRow.cash_paid || 0);
+        const outstanding = total - paid;
+        
+        const outEl = document.getElementById('modalOutstanding');
+        outEl.innerText = `Rs. ${outstanding.toLocaleString()}`;
+        if(outstanding > 0) {
+            outEl.className = "text-base font-black text-rose-600";
+        } else {
+            outEl.className = "text-base font-black text-slate-400";
+        }
+
+        // Loop array items detail view structure grid inside modal window
+        const container = document.getElementById('modalItemsContainer');
+        const items = itemsMap[saleId] || [];
+        let html = '';
+        
+        if(items.length === 0) {
+            html = `<p class="text-xs italic text-slate-400">No items found details.</p>`;
+        } else {
+            items.forEach(i => {
+                html += `
+                    <div class="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100/70 rounded-xl border border-slate-100 transition">
+                        <div>
+                            <div class="font-black text-slate-800 text-sm">${i.product_name}</div>
+                            <div class="text-[10px] text-indigo-600 font-black uppercase tracking-wider">${i.category || 'General Stock'}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-slate-900 text-sm">Rs. ${parseFloat(i.price).toLocaleString()}</div>
+                            <div class="text-[10px] text-slate-400 font-bold">Quantity Taken: ${i.qty}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        container.innerHTML = html;
+
+        // Display modal with animation
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.add('opacity-100');
+            modalBox.classList.remove('scale-95');
+            modalBox.classList.add('scale-100');
+        }, 10);
+    }
+
+    function closeInvoiceModal() {
+        const modal = document.getElementById('invoiceModal');
+        const modalBox = modal.querySelector('.transform');
+        
+        modal.classList.remove('opacity-100');
+        modalBox.classList.remove('scale-100');
+        modalBox.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    // Close on outside window frame click
+    window.onclick = function(event) {
+        const modal = document.getElementById('invoiceModal');
+        if (event.target === modal) {
+            closeInvoiceModal();
+        }
+    }
+</script>
 {% endblock %}
