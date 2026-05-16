@@ -132,6 +132,44 @@ async def logout():
     resp.delete_cookie("active_user")
     return resp
 
+
+@app.get("/sales")
+async def sales_page(request: Request):
+    if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
+    conn = get_db()
+    # Fetch all sales joined with customer details
+    query = """
+        SELECT s.id, s.receipt_number, s.total_amount, s.cash_paid, s.profit, 
+               s.payment_status, s.timestamp, c.name as customer_name, c.phone as customer_phone
+        FROM sales s
+        LEFT JOIN customers c ON s.customer_id = c.id
+        ORDER BY s.id DESC
+    """
+    all_sales = conn.execute(query).fetchall()
+    
+    # Fetch all items linked to sales for the detail modal breakdown
+    items_query = """
+        SELECT si.sale_id, si.product_name, si.qty, si.price, p.category
+        FROM sale_items si
+        LEFT JOIN products p ON si.product_name = p.name
+    """
+    all_items = conn.execute(items_query).fetchall()
+    conn.close()
+    
+    # Structure items by sale_id for lightning-fast JS lookups
+    sales_items_map = {}
+    for item in all_items:
+        s_id = item['sale_id']
+        if s_id not in sales_items_map:
+            sales_items_map[s_id] = []
+        sales_items_map[s_id].append(item)
+
+    return templates.TemplateResponse(request, "sales.html", {
+        "active_page": "sales",
+        "sales": all_sales,
+        "items_map": json.dumps(sales_items_map)
+    })
+
 # --- SMART INVENTORY APIs ---
 
 @app.get("/api/products/check-existing")

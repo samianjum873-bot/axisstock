@@ -1,0 +1,397 @@
+{% extends "index.html" %}
+
+{% block title %}Sales History | AXIS{% endblock %}
+{% block header_title %}Sales & Invoice History Ledger{% endblock %}
+
+{% block page_content %}
+<div class="space-y-6 text-slate-900 selection:bg-indigo-500 selection:text-white">
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Total Ledger Orders</span>
+                <span class="text-2xl font-black tracking-tight text-slate-900 mt-1 block" id="statTotalOrders">{{ sales|length }}</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+                <i class="fas fa-shopping-bag"></i>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Net Filtered Revenue</span>
+                <span class="text-2xl font-black tracking-tight text-slate-900 mt-1 block" id="totalRevenueBox">Rs. 0</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                <i class="fas fa-wallet"></i>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Net Profit Generated</span>
+                <span class="text-2xl font-black tracking-tight text-emerald-600 mt-1 block" id="totalProfitBox">Rs. 0</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+                <i class="fas fa-chart-line"></i>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Active Pending Balance</span>
+                <span class="text-2xl font-black tracking-tight text-rose-600 mt-1 block" id="totalPendingBox">Rs. 0</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div class="relative md:col-span-4">
+                <i class="fas fa-search absolute left-4 top-3.5 text-slate-400"></i>
+                <input type="text" id="salesSearch" onkeyup="handleFilterChange()" placeholder="Search Receipt, Customer, or Phone..." class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-bold text-sm bg-slate-50/50">
+            </div>
+
+            <div class="md:col-span-3">
+                <select id="categoryFilter" onchange="handleFilterChange()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-bold text-sm bg-slate-50/50 appearance-none cursor-pointer">
+                    <option value="ALL">All Categories (Stationary, Books, Notebooks)</option>
+                    <option value="stationary">Stationary Only</option>
+                    <option value="books">Books Only</option>
+                    <option value="notebooks">Notebooks Only</option>
+                </select>
+            </div>
+
+            <div class="md:col-span-3">
+                <select id="statusFilter" onchange="handleFilterChange()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-bold text-sm bg-slate-50/50 appearance-none cursor-pointer">
+                    <option value="ALL">All Payment Statuses</option>
+                    <option value="Paid">Paid Fully</option>
+                    <option value="Pending">Pending / Credit</option>
+                </select>
+            </div>
+
+            <div class="md:col-span-2">
+                <button onclick="resetAllFilters()" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-wider transition-all">
+                    Reset Filter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="salesTableLedger">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-wider">
+                        <th class="p-4">Receipt No</th>
+                        <th class="p-4">Date & Time</th>
+                        <th class="p-4">Customer Name</th>
+                        <th class="p-4">Contact Phone</th>
+                        <th class="p-4 text-right">Total Invoice</th>
+                        <th class="p-4 text-right">Profit Generated</th>
+                        <th class="p-4 text-center">Status</th>
+                        <th class="p-4 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-bold text-xs text-slate-700" id="salesTableBody">
+                    {% for sale in sales %}
+                    <tr class="hover:bg-slate-50/80 transition-colors sales-row" 
+                        data-id="{{ sale.id }}"
+                        data-revenue="{{ sale.total_amount }}"
+                        data-profit="{{ sale.profit }}"
+                        data-cash="{{ sale.cash_paid }}"
+                        data-status="{{ sale.payment_status }}">
+                        <td class="p-4 text-indigo-600 font-black tracking-wide">{{ sale.receipt_number }}</td>
+                        <td class="p-4 text-slate-500 font-medium">{{ sale.timestamp }}</td>
+                        <td class="p-4 font-black text-slate-800">{{ sale.customer_name if sale.customer_name else "Walk-in Customer" }}</td>
+                        <td class="p-4 text-slate-500">{{ sale.customer_phone if sale.customer_phone else "N/A" }}</td>
+                        <td class="p-4 text-right text-slate-900 font-black">Rs. {{ "{:,.0f}".format(sale.total_amount) }}</td>
+                        <td class="p-4 text-right text-emerald-600 font-black">Rs. {{ "{:,.0f}".format(sale.profit) }}</td>
+                        <td class="p-4 text-center">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider {% if sale.payment_status == 'Paid' %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                {{ sale.payment_status }}
+                            </span>
+                        </td>
+                        <td class="p-4 text-center">
+                            <button onclick="viewInvoiceBreakdown({{ sale.id }}, '{{ sale.receipt_number }}', '{{ sale.customer_name }}', '{{ sale.customer_phone }}', {{ sale.total_amount }}, {{ sale.cash_paid }}, '{{ sale.timestamp }}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black px-3 py-1.5 rounded-lg transition text-[10px] uppercase tracking-wider">
+                                <i class="fas fa-eye mr-1"></i> View Items
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-bold text-slate-500">
+            <div id="paginationMetrics">Showing 0 to 0 of 0 entries</div>
+            <div class="flex items-center gap-2">
+                <button onclick="changeCurrentPage(-1)" id="btnPrevPage" class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 font-black transition">
+                    <i class="fas fa-chevron-left mr-1"></i> Prev
+                </button>
+                <div class="flex items-center gap-1" id="paginationNumbersContainer"></div>
+                <button onclick="changeCurrentPage(1)" id="btnNextPage" class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 font-black transition">
+                    Next <i class="fas fa-chevron-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="invoiceBreakdownModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+        
+        <div class="bg-slate-950 p-4 text-white flex justify-between items-center">
+            <div>
+                <h4 class="text-sm font-black uppercase italic tracking-wide text-yellow-400" id="modalReceiptId">REC-000000</h4>
+                <p class="text-[10px] text-slate-400 font-bold mt-0.5" id="modalTimestamp"></p>
+            </div>
+            <button onclick="closeInvoiceModal()" class="w-8 h-8 rounded-full bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center text-xl transition">&times;</button>
+        </div>
+        
+        <div class="p-6 space-y-5 overflow-y-auto flex-1">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
+                <div>
+                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide">Customer Struct</span>
+                    <strong class="text-slate-800 text-sm mt-0.5 block" id="modalCustomerName">Sami Anjum</strong>
+                </div>
+                <div>
+                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide">Phone Reference</span>
+                    <strong class="text-slate-800 text-sm mt-0.5 block" id="modalCustomerPhone">03000000000</strong>
+                </div>
+                <div>
+                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide">Category Distribution</span>
+                    <div id="modalCategoryTags" class="flex flex-wrap gap-1 mt-1"></div>
+                </div>
+            </div>
+
+            <div>
+                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide mb-2.5">Detailed Itemized Breakdown Ledger</span>
+                <div class="border border-slate-100 rounded-xl overflow-hidden">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider">
+                            <tr>
+                                <th class="p-3.5">Product Description</th>
+                                <th class="p-3.5 text-center">Category</th>
+                                <th class="p-3.5 text-center">Qty</th>
+                                <th class="p-3.5 text-right">Price</th>
+                                <th class="p-3.5 text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalItemsContainer" class="divide-y divide-slate-100 font-bold text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 p-5 border-t border-slate-100 grid grid-cols-3 gap-4 text-center border-collapse font-black text-xs">
+            <div class="border-r border-slate-200">
+                <span class="block text-[10px] uppercase text-slate-400 tracking-wide mb-0.5">Grand Total</span>
+                <span id="modalGrandTotal" class="text-slate-900 text-base font-black">Rs. 0</span>
+            </div>
+            <div class="border-r border-slate-200">
+                <span class="block text-[10px] uppercase text-slate-400 tracking-wide mb-0.5">Cash Cleared</span>
+                <span id="modalCashPaid" class="text-emerald-600 text-base font-black">Rs. 0</span>
+            </div>
+            <div>
+                <span class="block text-[10px] uppercase text-slate-400 tracking-wide mb-0.5">Remaining Balance</span>
+                <span id="modalUdhaarBalance" class="text-rose-600 text-base font-black">Rs. 0</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const salesItemsDataset = {{ items_map|safe }};
+    
+    // Pagination Variables 
+    let currentPage = 1;
+    const recordsPerPage = 15;
+    let filteredRowsArray = [];
+
+    function processGlobalLedgerMetrics() {
+        let totalRevenue = 0;
+        let totalProfit = 0;
+        let totalPending = 0;
+        
+        filteredRowsArray.forEach(row => {
+            const rev = parseFloat(row.getAttribute('data-revenue')) || 0;
+            const profit = parseFloat(row.getAttribute('data-profit')) || 0;
+            const cash = parseFloat(row.getAttribute('data-cash')) || 0;
+            
+            totalRevenue += rev;
+            totalProfit += profit;
+            if(row.getAttribute('data-status') !== 'Paid') {
+                totalPending += (rev - cash);
+            }
+        });
+
+        document.getElementById('statTotalOrders').innerText = filteredRowsArray.length.toLocaleString();
+        document.getElementById('totalRevenueBox').innerText = 'Rs. ' + totalRevenue.toLocaleString();
+        document.getElementById('totalProfitBox').innerText = 'Rs. ' + totalProfit.toLocaleString();
+        document.getElementById('totalPendingBox').innerText = 'Rs. ' + (totalPending > 0 ? totalPending.toLocaleString() : '0');
+    }
+
+    function handleFilterChange() {
+        const searchQuery = document.getElementById('salesSearch').value.toLowerCase();
+        const selectedCat = document.getElementById('categoryFilter').value.toLowerCase();
+        const selectedStatus = document.getElementById('statusFilter').value;
+        
+        const allRows = Array.from(document.querySelectorAll('.sales-row'));
+        filteredRowsArray = [];
+
+        allRows.forEach(row => {
+            const saleId = row.getAttribute('data-id');
+            const rowText = row.innerText.toLowerCase();
+            const rowStatus = row.getAttribute('data-status');
+            
+            // Map items linked to verify category constraints
+            const items = salesItemsDataset[saleId] || [];
+            let matchesCategory = false;
+            
+            if (selectedCat === 'all') {
+                matchesCategory = true;
+            } else {
+                matchesCategory = items.some(item => {
+                    const c = (item.category || '').toLowerCase();
+                    return c.includes(selectedCat);
+                });
+            }
+
+            const matchesSearch = rowText.includes(searchQuery);
+            const matchesStatus = (selectedStatus === 'ALL' || rowStatus === selectedStatus);
+
+            if(matchesSearch && matchesCategory && matchesStatus) {
+                filteredRowsArray.push(row);
+                row.style.display = ''; // visible temporary
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        currentPage = 1; 
+        processGlobalLedgerMetrics();
+        renderPaginatedTableState();
+    }
+
+    function renderPaginatedTableState() {
+        const totalRecords = filteredRowsArray.length;
+        const totalPages = Math.ceil(totalRecords / recordsPerPage) || 1;
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * recordsPerPage;
+        const endIndex = Math.min(startIndex + recordsPerPage, totalRecords);
+
+        // Hide all rows except the current slice
+        document.querySelectorAll('.sales-row').forEach(row => row.style.display = 'none');
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            if (filteredRowsArray[i]) filteredRowsArray[i].style.display = '';
+        }
+
+        // Metrics rendering text
+        document.getElementById('paginationMetrics').innerText = `Showing ${totalRecords > 0 ? startIndex + 1 : 0} to ${endIndex} of ${totalRecords} entries`;
+
+        // Render Page Controls
+        document.getElementById('btnPrevPage').disabled = (currentPage === 1);
+        document.getElementById('btnNextPage').disabled = (currentPage === totalPages);
+
+        const numbersContainer = document.getElementById('paginationNumbersContainer');
+        numbersContainer.innerHTML = '';
+        
+        for (let p = 1; p <= totalPages; p++) {
+            if(totalPages > 5 && Math.abs(p - currentPage) > 1 && p !== 1 && p !== totalPages) {
+                if(p === 2 || p === totalPages - 1) {
+                    numbersContainer.innerHTML += `<span class="px-2 text-slate-400">...</span>`;
+                }
+                continue;
+            }
+            const activeClass = (p === currentPage) ? 'bg-indigo-600 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200';
+            numbersContainer.innerHTML += `<button onclick="goToSpecifiedPage(${p})" class="w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs transition ${activeClass}">${p}</button>`;
+        }
+    }
+
+    function changeCurrentPage(direction) {
+        currentPage += direction;
+        renderPaginatedTableState();
+    }
+
+    function goToSpecifiedPage(pageNum) {
+        currentPage = pageNum;
+        renderPaginatedTableState();
+    }
+
+    function resetAllFilters() {
+        document.getElementById('salesSearch').value = '';
+        document.getElementById('categoryFilter').value = 'ALL';
+        document.getElementById('statusFilter').value = 'ALL';
+        handleFilterChange();
+    }
+
+    function viewInvoiceBreakdown(saleId, receiptNum, name, phone, total, cashPaid, time) {
+        document.getElementById('modalReceiptId').innerText = receiptNum;
+        document.getElementById('modalTimestamp').innerText = time;
+        document.getElementById('modalCustomerName').innerText = name || "Walk-in Customer";
+        document.getElementById('modalCustomerPhone').innerText = phone || "N/A";
+        
+        document.getElementById('modalGrandTotal').innerText = 'Rs. ' + total.toLocaleString();
+        document.getElementById('modalCashPaid').innerText = 'Rs. ' + cashPaid.toLocaleString();
+        
+        let remainingUdhaar = total - cashPaid;
+        document.getElementById('modalUdhaarBalance').innerText = 'Rs. ' + (remainingUdhaar > 0 ? remainingUdhaar.toLocaleString() : '0');
+
+        const container = document.getElementById('modalItemsContainer');
+        const tagsContainer = document.getElementById('modalCategoryTags');
+        container.innerHTML = '';
+        tagsContainer.innerHTML = '';
+
+        const items = salesItemsDataset[saleId] || [];
+        let categoriesSet = new Set();
+
+        if(items.length === 0) {
+            container.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">No mapped context products linked.</td></tr>';
+        } else {
+            items.forEach(item => {
+                let sub = item.qty * item.price;
+                let itemCat = item.category || 'General';
+                categoriesSet.add(itemCat);
+
+                container.innerHTML += `
+                    <tr class="hover:bg-slate-50/50 transition-colors">
+                        <td class="p-3.5 text-slate-950 font-black">${item.product_name}</td>
+                        <td class="p-3.5 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 uppercase text-[10px] font-bold">${itemCat}</span></td>
+                        <td class="p-3.5 text-center text-slate-500 font-black">${item.qty}</td>
+                        <td class="p-3.5 text-right text-slate-600">Rs. ${item.price.toLocaleString()}</td>
+                        <td class="p-3.5 text-right text-slate-900 font-black">Rs. ${sub.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            categoriesSet.forEach(cat => {
+                tagsContainer.innerHTML += `<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-black text-[9px] uppercase tracking-wider border border-indigo-100">${cat}</span>`;
+            });
+        }
+        
+        const modal = document.getElementById('invoiceBreakdownModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeInvoiceModal() {
+        const modal = document.getElementById('invoiceBreakdownModal');
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        // Init state mapping on load sequence
+        filteredRowsArray = Array.from(document.querySelectorAll('.sales-row'));
+        processGlobalLedgerMetrics();
+        renderPaginatedTableState();
+    });
+</script>
+{% endblock %}
