@@ -149,7 +149,7 @@ async def sales_page(request: Request):
     
     # Fetch all items linked to sales for the detail modal breakdown
     items_query = """
-        SELECT si.sale_id, si.product_name, si.qty, si.price, p.category
+        SELECT si.sale_id, si.product_name, si.qty, si.price, p.category, p.subject, p.student_class
         FROM sale_items si
         LEFT JOIN products p ON si.product_name = p.name
     """

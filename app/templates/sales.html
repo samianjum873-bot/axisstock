@@ -4,8 +4,9 @@
 {% block header_title %}Sales & Invoice History Ledger{% endblock %}
 
 {% block page_content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <div class="space-y-6 text-slate-900 selection:bg-indigo-500 selection:text-white">
-    
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
@@ -85,14 +86,14 @@
             <table class="w-full text-left border-collapse" id="salesTableLedger">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-wider">
-                        <th class="p-4">Receipt No</th>
+                        <th class="p-4">Product Specs / Receipt</th>
                         <th class="p-4">Date & Time</th>
                         <th class="p-4">Customer Name</th>
                         <th class="p-4">Contact Phone</th>
                         <th class="p-4 text-right">Total Invoice</th>
                         <th class="p-4 text-right">Profit Generated</th>
                         <th class="p-4 text-center">Status</th>
-                        <th class="p-4 text-center">Action</th>
+                        
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 font-bold text-xs text-slate-700" id="salesTableBody">
@@ -103,9 +104,27 @@
                         data-profit="{{ sale.profit }}"
                         data-cash="{{ sale.cash_paid }}"
                         data-status="{{ sale.payment_status }}">
-                        <td class="p-4 text-indigo-600 font-black tracking-wide">{{ sale.receipt_number }}</td>
-                        <td class="p-4 text-slate-500 font-medium">{{ sale.timestamp }}</td>
-                        <td class="p-4 font-black text-slate-800">{{ sale.customer_name if sale.customer_name else "Walk-in Customer" }}</td>
+                        <td class="p-4 text-indigo-600 font-black tracking-wide max-w-[200px]">
+                            <div class="truncate text-slate-900 font-black text-xs id-product-display" data-sale-id="{{ sale.id }}">
+                                {{ sale.receipt_number }}
+                            </div>
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mt-0.5 bg-slate-100 px-1.5 py-0.5 rounded w-max">{{ sale.receipt_number }}</span>
+                        </td>
+                        <td class="p-4 text-slate-500 font-medium whitespace-nowrap">{{ sale.timestamp }}</td>
+                        <td class="p-4 text-slate-800 max-w-[250px]">
+                            {% if sale.customer_name %}
+                                <div class="flex flex-col gap-1">
+                                    <span class="font-black text-slate-900 truncate block max-w-[220px]" title="{{ sale.customer_name }}">{{ sale.customer_name }}</span>
+                                    <div class="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-500">
+                                        <span class="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded border border-slate-200/60 truncate max-w-[100px]" title="Father Name">S/O Hazir</span>
+                                        <span class="text-slate-300">|</span>
+                                        <span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.2 rounded font-black">Class 10</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="font-bold text-slate-400 italic">Walk-in Customer</span>
+                            {% endif %}
+                        </td>
                         <td class="p-4 text-slate-500">{{ sale.customer_phone if sale.customer_phone else "N/A" }}</td>
                         <td class="p-4 text-right text-slate-900 font-black">Rs. {{ "{:,.0f}".format(sale.total_amount) }}</td>
                         <td class="p-4 text-right text-emerald-600 font-black">Rs. {{ "{:,.0f}".format(sale.profit) }}</td>
@@ -114,11 +133,7 @@
                                 {{ sale.payment_status }}
                             </span>
                         </td>
-                        <td class="p-4 text-center">
-                            <button onclick="viewInvoiceBreakdown({{ sale.id }}, '{{ sale.receipt_number }}', '{{ sale.customer_name }}', '{{ sale.customer_phone }}', {{ sale.total_amount }}, {{ sale.cash_paid }}, '{{ sale.timestamp }}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black px-3 py-1.5 rounded-lg transition text-[10px] uppercase tracking-wider">
-                                <i class="fas fa-eye mr-1"></i> View Items
-                            </button>
-                        </td>
+                        
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -140,68 +155,7 @@
     </div>
 </div>
 
-<div id="invoiceBreakdownModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
-        
-        <div class="bg-slate-950 p-4 text-white flex justify-between items-center">
-            <div>
-                <h4 class="text-sm font-black uppercase italic tracking-wide text-yellow-400" id="modalReceiptId">REC-000000</h4>
-                <p class="text-[10px] text-slate-400 font-bold mt-0.5" id="modalTimestamp"></p>
-            </div>
-            <button onclick="closeInvoiceModal()" class="w-8 h-8 rounded-full bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center text-xl transition">&times;</button>
-        </div>
-        
-        <div class="p-6 space-y-5 overflow-y-auto flex-1">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
-                <div>
-                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide">Customer Struct</span>
-                    <strong class="text-slate-800 text-sm mt-0.5 block" id="modalCustomerName">Sami Anjum</strong>
-                </div>
-                <div>
-                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide">Phone Reference</span>
-                    <strong class="text-slate-800 text-sm mt-0.5 block" id="modalCustomerPhone">03000000000</strong>
-                </div>
-                <div>
-                    <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide">Category Distribution</span>
-                    <div id="modalCategoryTags" class="flex flex-wrap gap-1 mt-1"></div>
-                </div>
-            </div>
 
-            <div>
-                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wide mb-2.5">Detailed Itemized Breakdown Ledger</span>
-                <div class="border border-slate-100 rounded-xl overflow-hidden">
-                    <table class="w-full text-xs text-left">
-                        <thead class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider">
-                            <tr>
-                                <th class="p-3.5">Product Description</th>
-                                <th class="p-3.5 text-center">Category</th>
-                                <th class="p-3.5 text-center">Qty</th>
-                                <th class="p-3.5 text-right">Price</th>
-                                <th class="p-3.5 text-right">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody id="modalItemsContainer" class="divide-y divide-slate-100 font-bold text-slate-700"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-50 p-5 border-t border-slate-100 grid grid-cols-3 gap-4 text-center border-collapse font-black text-xs">
-            <div class="border-r border-slate-200">
-                <span class="block text-[10px] uppercase text-slate-400 tracking-wide mb-0.5">Grand Total</span>
-                <span id="modalGrandTotal" class="text-slate-900 text-base font-black">Rs. 0</span>
-            </div>
-            <div class="border-r border-slate-200">
-                <span class="block text-[10px] uppercase text-slate-400 tracking-wide mb-0.5">Cash Cleared</span>
-                <span id="modalCashPaid" class="text-emerald-600 text-base font-black">Rs. 0</span>
-            </div>
-            <div>
-                <span class="block text-[10px] uppercase text-slate-400 tracking-wide mb-0.5">Remaining Balance</span>
-                <span id="modalUdhaarBalance" class="text-rose-600 text-base font-black">Rs. 0</span>
-            </div>
-        </div>
-    </div>
-</div>
 
 <script>
     const salesItemsDataset = {{ items_map|safe }};
@@ -247,7 +201,6 @@
             const rowText = row.innerText.toLowerCase();
             const rowStatus = row.getAttribute('data-status');
             
-            // Map items linked to verify category constraints
             const items = salesItemsDataset[saleId] || [];
             let matchesCategory = false;
             
@@ -265,7 +218,7 @@
 
             if(matchesSearch && matchesCategory && matchesStatus) {
                 filteredRowsArray.push(row);
-                row.style.display = ''; // visible temporary
+                row.style.display = '';
             } else {
                 row.style.display = 'none';
             }
@@ -286,17 +239,14 @@
         const startIndex = (currentPage - 1) * recordsPerPage;
         const endIndex = Math.min(startIndex + recordsPerPage, totalRecords);
 
-        // Hide all rows except the current slice
         document.querySelectorAll('.sales-row').forEach(row => row.style.display = 'none');
         
         for (let i = startIndex; i < endIndex; i++) {
             if (filteredRowsArray[i]) filteredRowsArray[i].style.display = '';
         }
 
-        // Metrics rendering text
         document.getElementById('paginationMetrics').innerText = `Showing ${totalRecords > 0 ? startIndex + 1 : 0} to ${endIndex} of ${totalRecords} entries`;
 
-        // Render Page Controls
         document.getElementById('btnPrevPage').disabled = (currentPage === 1);
         document.getElementById('btnNextPage').disabled = (currentPage === totalPages);
 
@@ -332,64 +282,38 @@
         handleFilterChange();
     }
 
-    function viewInvoiceBreakdown(saleId, receiptNum, name, phone, total, cashPaid, time) {
-        document.getElementById('modalReceiptId').innerText = receiptNum;
-        document.getElementById('modalTimestamp').innerText = time;
-        document.getElementById('modalCustomerName').innerText = name || "Walk-in Customer";
-        document.getElementById('modalCustomerPhone').innerText = phone || "N/A";
-        
-        document.getElementById('modalGrandTotal').innerText = 'Rs. ' + total.toLocaleString();
-        document.getElementById('modalCashPaid').innerText = 'Rs. ' + cashPaid.toLocaleString();
-        
-        let remainingUdhaar = total - cashPaid;
-        document.getElementById('modalUdhaarBalance').innerText = 'Rs. ' + (remainingUdhaar > 0 ? remainingUdhaar.toLocaleString() : '0');
+    
 
-        const container = document.getElementById('modalItemsContainer');
-        const tagsContainer = document.getElementById('modalCategoryTags');
-        container.innerHTML = '';
-        tagsContainer.innerHTML = '';
-
-        const items = salesItemsDataset[saleId] || [];
-        let categoriesSet = new Set();
-
-        if(items.length === 0) {
-            container.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">No mapped context products linked.</td></tr>';
-        } else {
-            items.forEach(item => {
-                let sub = item.qty * item.price;
-                let itemCat = item.category || 'General';
-                categoriesSet.add(itemCat);
-
-                container.innerHTML += `
-                    <tr class="hover:bg-slate-50/50 transition-colors">
-                        <td class="p-3.5 text-slate-950 font-black">${item.product_name}</td>
-                        <td class="p-3.5 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 uppercase text-[10px] font-bold">${itemCat}</span></td>
-                        <td class="p-3.5 text-center text-slate-500 font-black">${item.qty}</td>
-                        <td class="p-3.5 text-right text-slate-600">Rs. ${item.price.toLocaleString()}</td>
-                        <td class="p-3.5 text-right text-slate-900 font-black">Rs. ${sub.toLocaleString()}</td>
-                    </tr>
-                `;
-            });
-
-            categoriesSet.forEach(cat => {
-                tagsContainer.innerHTML += `<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-black text-[9px] uppercase tracking-wider border border-indigo-100">${cat}</span>`;
-            });
-        }
-        
-        const modal = document.getElementById('invoiceBreakdownModal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-
-    function closeInvoiceModal() {
-        const modal = document.getElementById('invoiceBreakdownModal');
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
+    function applyDynamicProductDisplaySpecs() {
+        document.querySelectorAll('.id-product-display').forEach(el => {
+            const saleId = el.getAttribute('data-sale-id');
+            const items = salesItemsDataset[saleId] || [];
+            if(items.length > 0) {
+                const primary = items[0];
+                let nameStr = primary.product_name;
+                const cat = (primary.category || '').toLowerCase();
+                const subName = primary.subject || 'Subject';
+                
+                if (cat === 'books' || cat === 'book') {
+                    nameStr = `${subName}-Book`;
+                } else if (cat === 'notebooks' || cat === 'notebook') {
+                    nameStr = `${subName}-Notebook`;
+                } else {
+                    nameStr = primary.product_name;
+                }
+                
+                if(items.length > 1) {
+                    el.innerHTML = `<span class="truncate block max-w-[160px]" title="${nameStr}">${nameStr}</span> <span class="inline-block bg-amber-100 text-amber-800 text-[9px] font-black px-1 rounded ml-1">+${items.length - 1} items</span>`;
+                } else {
+                    el.innerHTML = `<span class="truncate block max-w-[180px]" title="${nameStr}">${nameStr}</span>`;
+                }
+            }
+        });
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        // Init state mapping on load sequence
         filteredRowsArray = Array.from(document.querySelectorAll('.sales-row'));
+        applyDynamicProductDisplaySpecs();
         processGlobalLedgerMetrics();
         renderPaginatedTableState();
     });
