@@ -45,26 +45,24 @@ async def startup_event():
         )
     """)
     
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS customers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            phone TEXT NOT NULL
-        )
-    """)
-    
+    # 4. Sales/Transactions Table - Perfectly aligned with Sami's DB Schema
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER,
-            receipt_number TEXT UNIQUE NOT NULL,
+            receipt_number TEXT NOT NULL UNIQUE,
+            student_name TEXT NOT NULL,
+            father_name TEXT NOT NULL,
+            cnic TEXT,
+            student_class TEXT NOT NULL,
+            phone_no TEXT NOT NULL,
+            address TEXT,
+            sale_type TEXT NOT NULL, -- 'Single Item' or 'Full Bundle'
             total_amount REAL NOT NULL,
             cash_paid REAL DEFAULT 0,
             profit REAL DEFAULT 0,
             payment_status TEXT DEFAULT 'Paid',
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(customer_id) REFERENCES customers(id)
-        )
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     
     cursor.execute("""
@@ -77,12 +75,6 @@ async def startup_event():
             FOREIGN KEY(sale_id) REFERENCES sales(id)
         )
     """)
-    
-    # Add cash_paid column if it doesn't exist (migration)
-    cursor.execute("PRAGMA table_info(sales)")
-    columns = [row[1] for row in cursor.fetchall()]
-    if 'cash_paid' not in columns:
-        cursor.execute("ALTER TABLE sales ADD COLUMN cash_paid REAL DEFAULT 0")
     
     conn.commit()
     conn.close()
@@ -132,22 +124,21 @@ async def logout():
     resp.delete_cookie("active_user")
     return resp
 
-
 @app.get("/sales")
 async def sales_page(request: Request):
     if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
     conn = get_db()
-    # Fetch all sales joined with customer details
+    
+    # Direct selection from sales table since all customer data is now flat in it
     query = """
-        SELECT s.id, s.receipt_number, s.total_amount, s.cash_paid, s.profit, 
-               s.payment_status, s.timestamp, c.name as customer_name, c.phone as customer_phone
-        FROM sales s
-        LEFT JOIN customers c ON s.customer_id = c.id
-        ORDER BY s.id DESC
+        SELECT id, receipt_number, student_name, father_name, cnic, student_class, 
+               phone_no, address, sale_type, total_amount, cash_paid, profit, 
+               payment_status, timestamp 
+        FROM sales 
+        ORDER BY id DESC
     """
     all_sales = conn.execute(query).fetchall()
     
-    # Fetch all items linked to sales for the detail modal breakdown
     items_query = """
         SELECT si.sale_id, si.product_name, si.qty, si.price, p.category, p.subject, p.student_class
         FROM sale_items si
@@ -156,7 +147,6 @@ async def sales_page(request: Request):
     all_items = conn.execute(items_query).fetchall()
     conn.close()
     
-    # Structure items by sale_id for lightning-fast JS lookups
     sales_items_map = {}
     for item in all_items:
         s_id = item['sale_id']
@@ -228,8 +218,8 @@ async def recent_sales(request: Request):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db()
     data = conn.execute("""
-        SELECT s.id, s.receipt_number, s.total_amount, s.payment_status, s.timestamp
-        FROM sales s ORDER BY s.id DESC LIMIT 5
+        SELECT id, receipt_number, total_amount, payment_status, timestamp
+        FROM sales ORDER BY id DESC LIMIT 5
     """).fetchall()
     conn.close()
     return data
@@ -237,13 +227,16 @@ async def recent_sales(request: Request):
 @app.post("/api/checkout")
 async def checkout(
     request: Request, 
-    p_name: str = Form(...), 
-    p_phone: str = Form(...), 
+    student_name: str = Form(...), 
+    father_name: str = Form(...), 
+    cnic: str = Form(""), 
+    student_class: str = Form(...), 
+    phone_no: str = Form(...), 
+    address: str = Form(""), 
     items_json: str = Form(...), 
     total: float = Form(...), 
     status: str = Form(...),
-    p_father_name: str = Form(""),
-    p_class: str = Form(""),
+    sale_type: str = Form("Single Item"),
     cash_paid: float = Form(0)
 ):
     if not is_logged_in(request): raise HTTPException(status_code=401)
@@ -251,9 +244,6 @@ async def checkout(
     receipt = "REC-" + "".join(random.choices(string.digits, k=6))
     items = json.loads(items_json)
     try:
-        cursor.execute("INSERT INTO customers (name, phone) VALUES (?,?)", (p_name, p_phone))
-        c_id = cursor.lastrowid
-        
         total_p_cost = 0
         for i in items:
             if 'id' in i and i['id']:
@@ -265,8 +255,16 @@ async def checkout(
             
         profit = total - total_p_cost
         
-        cursor.execute("INSERT INTO sales (customer_id, receipt_number, total_amount, cash_paid, profit, payment_status) VALUES (?,?,?,?,?,?)",
-                       (c_id, receipt, total, float(cash_paid) if cash_paid else total, profit, status))
+        # Exact match with our clean migrated database structure
+        cursor.execute("""
+            INSERT INTO sales (
+                receipt_number, student_name, father_name, cnic, student_class, 
+                phone_no, address, sale_type, total_amount, cash_paid, profit, payment_status
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            receipt, student_name, father_name, cnic, student_class, 
+            phone_no, address, sale_type, total, float(cash_paid) if cash_paid else total, profit, status
+        ))
         sale_id = cursor.lastrowid
         
         for i in items:
@@ -292,16 +290,19 @@ async def get_receipt(request: Request, sale_id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Sale not found")
     
-    customer = conn.execute("SELECT * FROM customers WHERE id = ?", (sale['customer_id'],)).fetchone()
     items = conn.execute("SELECT * FROM sale_items WHERE sale_id = ?", (sale_id,)).fetchall()
-    
     conn.close()
     
     receipt_data = {
         "sale_id": sale['id'],
         "receipt_number": sale['receipt_number'],
         "timestamp": sale['timestamp'],
-        "customer": customer,
+        "student_name": sale['student_name'],
+        "father_name": sale['father_name'],
+        "cnic": sale['cnic'],
+        "student_class": sale['student_class'],
+        "phone_no": sale['phone_no'],
+        "address": sale['address'],
         "items": items,
         "subtotal": sale['total_amount'],
         "payment_status": sale['payment_status'],
@@ -353,10 +354,9 @@ async def product_detail(request: Request, product_id: int):
 
     sales = conn.execute("""
         SELECT si.qty, si.price, s.receipt_number, s.payment_status, s.timestamp,
-               c.name as customer_name, c.phone as customer_phone
+               s.student_name, s.phone_no
         FROM sale_items si
         JOIN sales s ON si.sale_id = s.id
-        LEFT JOIN customers c ON s.customer_id = c.id
         WHERE si.product_name = ?
         ORDER BY s.timestamp DESC
         LIMIT 20

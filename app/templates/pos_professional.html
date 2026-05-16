@@ -35,7 +35,7 @@
             overflow: visible !important;
         }
         /* Explicitly hide the action buttons during print */
-        .print\:hidden {
+        .print:hidden {
             display: none !important;
         }
     }
@@ -182,6 +182,17 @@
                     <div>
                         <label class="block text-xs font-black text-slate-600 mb-1.5 uppercase">Phone Number *</label>
                         <input type="tel" id="custPhone" placeholder="0300-XXXXXXX" class="w-full border-2 border-slate-300 p-3 rounded-lg outline-none focus:border-indigo-600 font-bold">
+                    </div>
+                </div>
+                <!-- Added fields to fully utilize Database parameters -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-1.5 uppercase">CNIC / B-Form</label>
+                        <input type="text" id="custCnic" placeholder="Optional" class="w-full border-2 border-slate-300 p-3 rounded-lg outline-none focus:border-indigo-600 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-1.5 uppercase">Address</label>
+                        <input type="text" id="custAddress" placeholder="Optional" class="w-full border-2 border-slate-300 p-3 rounded-lg outline-none focus:border-indigo-600 font-bold">
                     </div>
                 </div>
             </div>
@@ -502,7 +513,7 @@ function calculateBalance() {
     document.getElementById('balanceAmount').value = balance;
 }
 
-// Complete Transaction
+// Complete Transaction - Perfectly matched with Sami's Backend Variables
 async function completeTransaction() {
     const name = document.getElementById('custName').value.trim();
     const phone = document.getElementById('custPhone').value.trim();
@@ -513,16 +524,19 @@ async function completeTransaction() {
     }
     
     const total = cart.reduce((s, i) => s + (i.selling_price * i.qty), 0);
-    const cashPaid = currentPaymentMethod === 'Pending' ? (parseFloat(document.getElementById('cashPaid').value) || 0) : total;
+    const cashPaid = currentPaymentMethod === 'Paid' ? total : (parseFloat(document.getElementById('cashPaid').value) || 0);
     
     const formData = new FormData();
-    formData.append('p_name', name);
-    formData.append('p_phone', phone);
-    formData.append('p_father_name', document.getElementById('custFatherName').value);
-    formData.append('p_class', document.getElementById('custClass').value);
+    formData.append('student_name', name);
+    formData.append('phone_no', phone);
+    formData.append('father_name', document.getElementById('custFatherName').value.trim());
+    formData.append('student_class', document.getElementById('custClass').value.trim());
+    formData.append('cnic', document.getElementById('custCnic').value.trim());
+    formData.append('address', document.getElementById('custAddress').value.trim());
     formData.append('items_json', JSON.stringify(cart));
     formData.append('total', total);
     formData.append('status', currentPaymentMethod);
+    formData.append('sale_type', 'Single Item'); // Default behavior fallback
     formData.append('cash_paid', cashPaid);
     
     try {
@@ -536,7 +550,7 @@ async function completeTransaction() {
             updateCart();
             showReceipt(data.sale_id, name, phone, oldCart, cashPaid);
             loadRecentTransactions();
-            await refreshData(); // Auto sync upper cards dashboard right after checkout!
+            await refreshData();
         } else {
             alert('Transaction Error: ' + data.message);
         }

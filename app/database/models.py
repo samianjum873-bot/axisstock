@@ -11,30 +11,30 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Inventory Table (Individual items like books, copies, uniforms)
+    # 1. Inventory Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS inventory (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_name TEXT NOT NULL,
-        item_type TEXT NOT NULL, -- 'Book', 'Notebook', 'Uniform', etc.
-        student_class TEXT NOT NULL, -- e.g., 'Class 1', 'Class 2'
+        item_type TEXT NOT NULL,
+        student_class TEXT NOT NULL,
         price REAL NOT NULL,
         total_stock INTEGER NOT NULL,
         remaining_stock INTEGER NOT NULL
     );
     """)
     
-    # 2. Bundles Table (Mapping which items belong to which class set)
+    # 2. Bundles Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS bundles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        bundle_name TEXT NOT NULL, -- e.g., 'Class 1 Full Set'
+        bundle_name TEXT NOT NULL,
         student_class TEXT NOT NULL UNIQUE,
         total_price REAL NOT NULL
     );
     """)
     
-    # 3. Bundle Items Mapping (Many-to-Many relationship between Bundles and Inventory)
+    # 3. Bundle Items Mapping
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS bundle_items (
         bundle_id INTEGER,
@@ -46,21 +46,27 @@ def init_db():
     );
     """)
     
-    # 4. Sales/Transactions Table
+    # 4. Sales/Transactions Table (Fully Updated for Analytics & POS Billing v2)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         receipt_number TEXT NOT NULL UNIQUE,
-        parent_name TEXT NOT NULL,
-        parent_phone TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        father_name TEXT NOT NULL,
+        cnic TEXT,
         student_class TEXT NOT NULL,
-        sale_type TEXT NOT NULL, -- 'Single Item' or 'Full Bundle'
+        phone_no TEXT NOT NULL,
+        address TEXT,
+        sale_type TEXT NOT NULL,
         total_amount REAL NOT NULL,
+        profit REAL DEFAULT 0.0,
+        payment_status TEXT DEFAULT 'Paid',
+        cash_paid REAL DEFAULT 0.0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     """)
     
-    # 5. Sale Details (What was sold in that receipt)
+    # 5. Sale Details
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS sale_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +80,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("[SUCCESS] Database tables initialized successfully.")
+    print("[SUCCESS] Database tables initialized successfully with professional POS & Analytics columns.")
 
 if __name__ == "__main__":
     init_db()
