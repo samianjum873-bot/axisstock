@@ -93,7 +93,6 @@
                         <th class="p-4 text-right">Total Invoice</th>
                         <th class="p-4 text-right">Profit Generated</th>
                         <th class="p-4 text-center">Status</th>
-                        
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 font-bold text-xs text-slate-700" id="salesTableBody">
@@ -112,20 +111,20 @@
                         </td>
                         <td class="p-4 text-slate-500 font-medium whitespace-nowrap">{{ sale.timestamp }}</td>
                         <td class="p-4 text-slate-800 max-w-[250px]">
-                            {% if sale.customer_name %}
+                            {% if sale.student_name %}
                                 <div class="flex flex-col gap-1">
-                                    <span class="font-black text-slate-900 truncate block max-w-[220px]" title="{{ sale.customer_name }}">{{ sale.customer_name }}</span>
+                                    <span class="font-black text-slate-900 truncate block max-w-[220px]" title="{{ sale.student_name }}">{{ sale.student_name }}</span>
                                     <div class="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-500">
-                                        <span class="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded border border-slate-200/60 truncate max-w-[100px]" title="Father Name">S/O Hazir</span>
+                                        <span class="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded border border-slate-200/60 truncate max-w-[100px]" title="Father Name">S/O {{ sale.father_name }}</span>
                                         <span class="text-slate-300">|</span>
-                                        <span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.2 rounded font-black">Class 10</span>
+                                        <span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.2 rounded font-black">Class {{ sale.student_class }}</span>
                                     </div>
                                 </div>
                             {% else %}
                                 <span class="font-bold text-slate-400 italic">Walk-in Customer</span>
                             {% endif %}
                         </td>
-                        <td class="p-4 text-slate-500">{{ sale.customer_phone if sale.customer_phone else "N/A" }}</td>
+                        <td class="p-4 text-slate-500">{{ sale.phone_no if sale.phone_no else "N/A" }}</td>
                         <td class="p-4 text-right text-slate-900 font-black">Rs. {{ "{:,.0f}".format(sale.total_amount) }}</td>
                         <td class="p-4 text-right text-emerald-600 font-black">Rs. {{ "{:,.0f}".format(sale.profit) }}</td>
                         <td class="p-4 text-center">
@@ -133,7 +132,6 @@
                                 {{ sale.payment_status }}
                             </span>
                         </td>
-                        
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -155,12 +153,9 @@
     </div>
 </div>
 
-
-
 <script>
     const salesItemsDataset = {{ items_map|safe }};
     
-    // Pagination Variables 
     let currentPage = 1;
     const recordsPerPage = 15;
     let filteredRowsArray = [];
@@ -218,7 +213,6 @@
 
             if(matchesSearch && matchesCategory && matchesStatus) {
                 filteredRowsArray.push(row);
-                row.style.display = '';
             } else {
                 row.style.display = 'none';
             }
@@ -282,8 +276,6 @@
         handleFilterChange();
     }
 
-    
-
     function applyDynamicProductDisplaySpecs() {
         document.querySelectorAll('.id-product-display').forEach(el => {
             const saleId = el.getAttribute('data-sale-id');
@@ -292,11 +284,11 @@
                 const primary = items[0];
                 let nameStr = primary.product_name;
                 const cat = (primary.category || '').toLowerCase();
-                const subName = primary.subject || 'Subject';
+                const subName = primary.subject || '';
                 
-                if (cat === 'books' || cat === 'book') {
+                if ((cat === 'books' || cat === 'book') && subName) {
                     nameStr = `${subName}-Book`;
-                } else if (cat === 'notebooks' || cat === 'notebook') {
+                } else if ((cat === 'notebooks' || cat === 'notebook') && subName) {
                     nameStr = `${subName}-Notebook`;
                 } else {
                     nameStr = primary.product_name;
