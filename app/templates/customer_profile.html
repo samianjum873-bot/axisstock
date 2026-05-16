@@ -1,0 +1,108 @@
+{% extends "index.html" %}
+
+{% block title %}Customer Profile | AXIS{% endblock %}
+{% block header_title %}Customer Dossier Profile Ledger{% endblock %}
+
+{% block page_content %}
+<div class="space-y-6 text-slate-900">
+    <!-- Back to Directory -->
+    <div class="flex justify-between items-center">
+        <a href="/customers" class="text-xs font-black text-slate-500 hover:text-indigo-600 uppercase tracking-wider flex items-center gap-2 transition">
+            <i class="fas fa-arrow-left"></i> Back to Directory List
+        </a>
+        <span class="text-[11px] font-black bg-slate-200/80 text-slate-700 px-3 py-1 rounded-full uppercase font-mono">CNIC ID: {{ profile.cnic }}</span>
+    </div>
+
+    <!-- Customer Top Profile Card Specs -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-6 relative overflow-hidden">
+        <div class="md:col-span-1 flex flex-col justify-center items-center md:items-start md:border-r border-slate-100 pr-4">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl font-black shadow-lg mb-3 shadow-indigo-100">
+                {{ profile.student_name[0]|upper }}
+            </div>
+            <h3 class="text-xl font-black text-slate-900 tracking-tight">{{ profile.student_name }}</h3>
+            <span class="text-xs text-slate-400 font-bold mt-0.5">S/O {{ profile.father_name }}</span>
+        </div>
+
+        <div class="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold self-center">
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Registered Phone</span>
+                <span class="text-slate-800 font-mono text-sm block mt-1">{{ profile.phone_no }}</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Academic Grade Link</span>
+                <span class="text-indigo-600 text-sm block font-black mt-1">Class {{ profile.student_class }}</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-slate-400 block uppercase tracking-wider text-[9px] font-black">Current Account Address</span>
+                <span class="text-slate-700 truncate block mt-1" title="{{ profile.address if profile.address else 'N/A' }}">{{ profile.address if profile.address else "N/A" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business Volume and Stats Breakdown -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Total Orders Placed</span>
+                <span class="text-2xl font-black tracking-tight text-slate-900 mt-1 block">{{ stats.total_orders }}</span>
+            </div>
+            <div class="w-11 h-11 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center text-base"><i class="fas fa-shopping-cart"></i></div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Gross Revenue Contribution</span>
+                <span class="text-2xl font-black tracking-tight text-emerald-600 mt-1 block">Rs. {{ "{:,.0f}".format(stats.total_spent) }}</span>
+            </div>
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-base"><i class="fas fa-coins"></i></div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+                <span class="block text-[11px] font-black uppercase text-slate-400 tracking-wider">Unpaid Udhaar / Balance</span>
+                <span class="text-2xl font-black tracking-tight {% if stats.total_pending > 0 %}text-rose-600{% else %}text-slate-400{% endif %} mt-1 block">Rs. {{ "{:,.0f}".format(stats.total_pending) }}</span>
+            </div>
+            <div class="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-base"><i class="fas fa-hand-holding-usd"></i></div>
+        </div>
+    </div>
+
+    <!-- Customer Purchase History Logs -->
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+        <div class="p-4 bg-slate-50 border-b border-slate-100">
+            <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Complete Invoices Procurement Ledger</h4>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-white border-b border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-wider">
+                        <th class="p-4">Receipt Num</th>
+                        <th class="p-4">Date & Time Log</th>
+                        <th class="p-4">Sale Module</th>
+                        <th class="p-4 text-right">Invoice Amount</th>
+                        <th class="p-4 text-right">Cash Paid</th>
+                        <th class="p-4 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-bold text-xs text-slate-600">
+                    {% for item in history %}
+                    <tr class="hover:bg-slate-50/50 transition-colors">
+                        <td class="p-4 text-indigo-600 font-black font-mono">{{ item.receipt_number }}</td>
+                        <td class="p-4 text-slate-500 font-medium">{{ item.timestamp }}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wide bg-slate-100 border text-slate-600">
+                                {{ item.sale_type }}
+                            </span>
+                        </td>
+                        <td class="p-4 text-right text-slate-900 font-black">Rs. {{ "{:,.0f}".format(item.total_amount) }}</td>
+                        <td class="p-4 text-right text-slate-700">Rs. {{ "{:,.0f}".format(item.cash_paid) }}</td>
+                        <td class="p-4 text-center">
+                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider {% if item.payment_status == 'Paid' %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                {{ item.payment_status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

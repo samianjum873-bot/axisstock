@@ -32,6 +32,9 @@
             <a href="/sales" id="link-sales" class="sidebar-link {% if active_page == 'sales' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-history w-8"></i> <span class="font-bold text-xs">SALES HISTORY</span>
             </a>
+            <a href="/customers" id="link-customers" class="sidebar-link {% if active_page == 'customers' or active_page == 'customer_detail' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
+                <i class="fas fa-users w-8"></i> <span class="font-bold text-xs">CUSTOMER DATABASE</span>
+            </a>
         </nav>
         <div class="p-4 border-t border-indigo-900">
             <a href="/logout" class="flex items-center p-4 w-full text-rose-400 font-black hover:bg-rose-500/10 rounded-xl transition">

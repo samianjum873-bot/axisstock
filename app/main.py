@@ -45,7 +45,7 @@ async def startup_event():
         )
     """)
     
-    # 4. Sales/Transactions Table - Perfectly aligned with Sami's DB Schema
+    # Sales/Transactions Table - Perfectly aligned with Sami's DB Schema
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,7 +129,6 @@ async def sales_page(request: Request):
     if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
     conn = get_db()
     
-    # Direct selection from sales table since all customer data is now flat in it
     query = """
         SELECT id, receipt_number, student_name, father_name, cnic, student_class, 
                phone_no, address, sale_type, total_amount, cash_paid, profit, 
@@ -255,7 +254,6 @@ async def checkout(
             
         profit = total - total_p_cost
         
-        # Exact match with our clean migrated database structure
         cursor.execute("""
             INSERT INTO sales (
                 receipt_number, student_name, father_name, cnic, student_class, 
@@ -380,4 +378,82 @@ async def product_detail(request: Request, product_id: int):
             "last_sold": last_sold,
             "profit": profit
         }
+    })
+
+# --- CUSTOMER PROFILES AND TRACKING MANAGEMENT MODULE ---
+
+@app.get("/customers")
+async def list_registered_customers(request: Request):
+    if not is_logged_in(request): 
+        return RedirectResponse(url="/login", status_code=303)
+    
+    conn = get_db()
+    query = """
+        SELECT 
+            cnic, 
+            student_name, 
+            father_name, 
+            phone_no, 
+            student_class,
+            address,
+            COUNT(id) as total_orders, 
+            SUM(total_amount) as total_spent
+        FROM sales 
+        WHERE cnic IS NOT NULL AND cnic != ''
+        GROUP BY cnic
+        ORDER BY total_spent DESC
+    """
+    unique_customers = conn.execute(query).fetchall()
+    conn.close()
+    
+    return templates.TemplateResponse(request, "customers.html", {
+        "active_page": "customers",
+        "customers": unique_customers
+    })
+
+@app.get("/customers/profile/{cnic_id}")
+async def view_customer_detailed_profile(request: Request, cnic_id: str):
+    if not is_logged_in(request): 
+        return RedirectResponse(url="/login", status_code=303)
+    
+    conn = get_db()
+    
+    profile = conn.execute("""
+        SELECT student_name, father_name, cnic, phone_no, student_class, address 
+        FROM sales 
+        WHERE cnic = ? 
+        LIMIT 1
+    """, (cnic_id,)).fetchone()
+    
+    if not profile:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Customer Profile Data Not Found")
+        
+    history = conn.execute("""
+        SELECT receipt_number, total_amount, cash_paid, payment_status, sale_type, timestamp 
+        FROM sales 
+        WHERE cnic = ? 
+        ORDER BY id DESC
+    """, (cnic_id,)).fetchall()
+    
+    total_orders = len(history)
+    total_spent = sum(row['total_amount'] for row in history)
+    
+    total_pending = 0
+    for row in history:
+        if row['payment_status'] != 'Paid':
+            total_pending += (row['total_amount'] - (row['cash_paid'] or 0))
+
+    stats_block = {
+        "total_orders": total_orders,
+        "total_spent": total_spent,
+        "total_pending": total_pending
+    }
+    
+    conn.close()
+    return templates.TemplateResponse(request, "customer_profile.html", {
+        "active_page": "customer_detail",
+        "profile": profile,
+        "history": history,
+        "stats": stats_block
     })

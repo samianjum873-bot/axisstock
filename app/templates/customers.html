@@ -1,0 +1,71 @@
+{% extends "index.html" %}
+
+{% block title %}Customers Directory | AXIS{% endblock %}
+{% block header_title %}Registered Customers Base{% endblock %}
+
+{% block page_content %}
+<div class="space-y-6 text-slate-900">
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+        <div class="relative w-full max-w-md">
+            <i class="fas fa-search absolute left-4 top-3.5 text-slate-400"></i>
+            <input type="text" id="custSearch" onkeyup="filterCustomersTable()" placeholder="Search by Name, CNIC, or Phone..." class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 font-bold text-sm bg-slate-50/50">
+        </div>
+        <div class="text-xs font-black text-indigo-600 uppercase bg-indigo-50 px-4 py-2.5 rounded-xl border border-indigo-100">
+            Total Unique Profiles: {{ customers|length }}
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="customersTable">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-wider">
+                        <th class="p-4">Customer CNIC</th>
+                        <th class="p-4">Student Identity</th>
+                        <th class="p-4">Father Name</th>
+                        <th class="p-4">Contact Number</th>
+                        <th class="p-4 text-center">Total Invoices Buy</th>
+                        <th class="p-4 text-right">Net Business Volume</th>
+                        <th class="p-4 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-bold text-xs text-slate-700">
+                    {% for c in customers %}
+                    <tr class="hover:bg-slate-50/80 transition-colors customer-row">
+                        <td class="p-4 text-indigo-600 font-black tracking-wide font-mono">{{ c.cnic if c.cnic else "N/A" }}</td>
+                        <td class="p-4">
+                            <div class="flex flex-col">
+                                <span class="font-black text-slate-900 text-sm">{{ c.student_name }}</span>
+                                <span class="text-[10px] text-slate-400 font-medium">Class: {{ c.student_class }}</span>
+                            </div>
+                        </td>
+                        <td class="p-4 text-slate-600">S/O {{ c.father_name }}</td>
+                        <td class="p-4 text-slate-500 font-mono">{{ c.phone_no }}</td>
+                        <td class="p-4 text-center text-slate-900 bg-slate-50/50 font-black">{{ c.total_orders }} Orders</td>
+                        <td class="p-4 text-right text-emerald-600 font-black">Rs. {{ "{:,.0f}".format(c.total_spent) }}</td>
+                        <td class="p-4 text-center">
+                            <a href="/customers/profile/{{ c.cnic }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-wider">
+                                <i class="fas fa-user-shield"></i> View Profile
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-slate-400 font-medium italic">No registered customers with active CNIC found in ledger.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterCustomersTable() {
+        const query = document.getElementById('custSearch').value.toLowerCase();
+        document.querySelectorAll('.customer-row').forEach(row => {
+            row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}
