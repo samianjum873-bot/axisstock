@@ -22,7 +22,17 @@ def is_logged_in(request: Request):
 @app.get("/")
 async def index(request: Request):
     if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse(request, "index.html")
+    return templates.TemplateResponse(request, "pos.html", {"active_page": "pos"})
+
+@app.get("/pos")
+async def pos_page(request: Request):
+    if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(request, "pos.html", {"active_page": "pos"})
+
+@app.get("/inventory")
+async def inventory_page(request: Request):
+    if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(request, "inventory.html", {"active_page": "inventory"})
 
 @app.get("/login")
 async def login_page(request: Request):

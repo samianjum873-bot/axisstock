@@ -1,0 +1,162 @@
+{% extends "index.html" %}
+
+{% block title %}Billing Wizard{% endblock %}
+
+{% block header_title %}Counter Billing Terminal{% endblock %}
+
+{% block page_content %}
+    <div class="grid grid-cols-12 gap-6">
+        <div class="col-span-12 xl:col-span-7 space-y-4">
+            <div class="bg-white p-4 rounded-2xl border flex justify-around shadow-sm font-black text-xs uppercase tracking-wider">
+                <span id="step1-badge" class="text-indigo-600"><i class="fas fa-1 circle"></i> 1. Choose & Add</span>
+                <span id="step2-badge" class="text-slate-400"><i class="fas fa-2 circle"></i> 2. Customer details</span>
+                <span id="step3-badge" class="text-slate-400"><i class="fas fa-3 circle"></i> 3. Payment Split</span>
+            </div>
+
+            <div id="wizard-step-1" class="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                <h3 class="font-black text-slate-800 uppercase text-sm border-b pb-2">Step 1: Select Category & Products</h3>
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Select Sales Category</label>
+                    <select id="wizardCategory" onchange="handleWizardCategoryChange()" class="w-full border-2 p-3.5 rounded-xl font-black bg-slate-50 border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">-- Choose Category --</option>
+                        <option value="Stationery">Stationery Items</option>
+                        <option value="Book">Course Books</option>
+                        <option value="Notebook">Notebooks</option>
+                        <option value="Set">Complete Class Set (Books + Notebooks)</option>
+                    </select>
+                </div>
+
+                <div id="setLogicFields" class="hidden-field bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3">
+                    <p class="text-xs font-bold text-amber-800"><i class="fas fa-info-circle mr-1"></i> Entering a Class will auto-load all Books and Notebooks matching that class into the active basket with 1 quantity.</p>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Enter Target Class (e.g. 1, 2, 10, Nursery)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="targetClassInput" placeholder="Class name..." class="flex-1 border p-3 rounded-xl font-bold uppercase outline-none focus:ring-2 focus:ring-amber-500">
+                            <button type="button" onclick="loadClassSetIntoCart()" class="bg-amber-600 hover:bg-amber-700 text-white font-black px-6 py-3 rounded-xl uppercase text-xs tracking-wider transition">Load Full Set</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="specificProductFields" class="hidden-field space-y-3">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs"><i class="fas fa-search"></i></span>
+                        <input type="text" id="wizardProductSearch" onkeyup="filterWizardProducts()" placeholder="Type item or subject to search clean list..." class="w-full border p-3 pl-9 rounded-xl font-bold bg-slate-50 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="border rounded-xl max-h-[260px] overflow-y-auto divide-y bg-white" id="wizardProductList">
+                        <p class="p-4 text-xs font-bold text-slate-400 text-center">Please select a category above first.</p>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end">
+                    <button type="button" onclick="goToStep(2)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition shadow-md">Next Step: Details <i class="fas fa-arrow-right ml-1"></i></button>
+                </div>
+            </div>
+
+            <div id="wizard-step-2" class="hidden-field bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                <h3 class="font-black text-slate-800 uppercase text-sm border-b pb-2">Step 2: Student & Parent Profile</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Student Full Name</label>
+                        <input type="text" id="custStudentName" placeholder="Student Name" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Father Name</label>
+                        <input type="text" id="custFatherName" placeholder="Father's Name" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Class & Section</label>
+                        <input type="text" id="custClassSection" placeholder="Class 10-A" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Active Phone No</label>
+                        <input type="text" id="custPhone" placeholder="03XXXXXXXXX" class="w-full border p-3 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div class="pt-4 border-t flex justify-between">
+                    <button type="button" onclick="goToStep(1)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition"><i class="fas fa-arrow-left mr-1"></i> Back</button>
+                    <button type="button" onclick="goToStep(3)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition shadow-md">Review & Finalize <i class="fas fa-arrow-right ml-1"></i></button>
+                </div>
+            </div>
+
+            <div id="wizard-step-3" class="hidden-field bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                <h3 class="font-black text-slate-800 uppercase text-sm border-b pb-2">Step 3: Final Payment Split & Settlement</h3>
+                <div class="bg-slate-50 border p-4 rounded-xl text-xs font-bold text-slate-600 space-y-1">
+                    <div class="flex justify-between"><p>Student/Parent:</p><p id="lblPreviewUser">-</p></div>
+                    <div class="flex justify-between"><p>Class Spec:</p><p id="lblPreviewClass">-</p></div>
+                    <div class="flex justify-between border-t pt-1 font-black text-slate-900 text-sm">
+                        <p>Total Payable Net Amount:</p>
+                        <p class="text-indigo-600">Rs. <span id="lblPreviewTotal">0</span></p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Choose Settlement Option:</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" onclick="processFinalSale('Paid')" class="bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition flex flex-col items-center justify-center gap-1.5">
+                            <i class="fas fa-money-bill-wave text-xl"></i>
+                            <span>Full Cash Payment</span>
+                        </button>
+                        <button type="button" onclick="toggleCreditSplitForm(true)" class="bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition flex flex-col items-center justify-center gap-1.5">
+                            <i class="fas fa-book-open text-xl"></i>
+                            <span>Credit / Udhaar Split</span>
+                        </button>
+                    </div>
+                    <div id="creditSplitInterface" class="hidden-field p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+                        <h4 class="text-xs font-black text-amber-900 uppercase italic">Credit Custom Split Management</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-500 uppercase mb-0.5">Cash Paid by Parent Now</label>
+                                <input type="number" id="splitCashReceived" onkeyup="calculateSplitUdhaar()" value="0" class="w-full p-2 border rounded-lg font-black outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-500 uppercase mb-0.5">Remaining Balance (Udhaar)</label>
+                                <input type="number" id="splitUdhaarBalance" class="w-full p-2 border bg-slate-100 rounded-lg font-black text-rose-600" readonly value="0">
+                            </div>
+                        </div>
+                        <button type="button" onclick="processFinalSale('CreditSplit')" class="w-full bg-amber-600 hover:bg-amber-700 text-white p-3 rounded-lg font-black text-xs uppercase tracking-wider transition">Confirm Split Udhaar Entry ⚠️</button>
+                    </div>
+                </div>
+                <div class="pt-4 border-t">
+                    <button type="button" onclick="goToStep(2)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition"><i class="fas fa-arrow-left mr-1"></i> Back</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-span-12 xl:col-span-5">
+            <div class="bg-white rounded-2xl border shadow-sm p-5 sticky top-4 space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b">
+                    <h2 class="font-black text-slate-800 text-xs uppercase tracking-tight">Active Professional Invoice</h2>
+                    <span id="cartCount" class="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full text-[10px] font-black">0 Items Added</span>
+                </div>
+                <div id="cartItems" class="space-y-2 max-h-[300px] overflow-y-auto pr-1 text-xs font-bold text-slate-600">
+                    <p class="text-slate-400 italic text-center py-6">Invoice basket is completely empty.</p>
+                </div>
+                <div class="bg-slate-950 text-white p-4 rounded-xl shadow-inner border border-slate-800 flex justify-between items-center">
+                    <p class="text-[10px] uppercase font-black tracking-wider text-slate-400">Gross Total</p>
+                    <p class="text-xl font-black font-mono text-yellow-400">Rs. <span id="orderTotal">0</span></p>
+                </div>
+                <button type="button" onclick="clearActiveBasket()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-black p-2 rounded-xl text-[10px] uppercase tracking-wider transition">Clear Whole Basket</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 bg-white rounded-2xl border p-5 shadow-sm space-y-3">
+        <h3 class="text-xs font-black uppercase text-slate-700 tracking-wider"><i class="fas fa-history mr-1 text-indigo-500"></i> Terminal Recent History Logs</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-400 uppercase font-black text-[10px]">
+                    <tr>
+                        <th class="p-3">Receipt ID</th>
+                        <th class="p-3">Net Amount</th>
+                        <th class="p-3">Payment Status Summary</th>
+                        <th class="p-3">Timestamp Log</th>
+                    </tr>
+                </thead>
+                <tbody id="recentSalesHistoryLog" class="font-bold text-slate-700 divide-y">
+                    <tr><td colspan="4" class="p-3 text-center text-slate-400">Loading history logs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
