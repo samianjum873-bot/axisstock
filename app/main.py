@@ -364,28 +364,46 @@ async def product_detail(request: Request, product_id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Product entity not found")
 
-    analytics = conn.execute("""
-        SELECT SUM(si.qty) as total_units, SUM(si.qty * si.price) as total_revenue, 
-               MAX(s.timestamp) as last_sold, COUNT(DISTINCT s.id) as sale_count
-        FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE si.product_id = ?
-    """, (product_id,)).fetchone()
+    try:
+        analytics = conn.execute("""
+            SELECT SUM(qty) as total_units, SUM(qty * price) as total_revenue, 
+                   COUNT(DISTINCT sale_id) as sale_count
+            FROM sale_items WHERE product_id = ?
+        """, (product_id,)).fetchone()
 
-    sales = conn.execute("""
-        SELECT si.qty, si.price, s.receipt_number, s.payment_status, s.timestamp, s.student_name, s.phone_no
-        FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE si.product_id = ?
-        ORDER BY s.timestamp DESC LIMIT 20
-    """, (product_id,)).fetchall()
+        last_sold_row = conn.execute("""
+            SELECT s.timestamp FROM sale_items si 
+            JOIN sales s ON si.sale_id = s.id 
+            WHERE si.product_id = ? ORDER BY s.timestamp DESC LIMIT 1
+        """, (product_id,)).fetchone()
+        last_sold = last_sold_row['timestamp'] if last_sold_row else None
+
+        sales = conn.execute("""
+            SELECT si.qty, si.price, s.receipt_number, s.payment_status, s.timestamp, s.student_name, s.phone_no
+            FROM sale_items si 
+            JOIN sales s ON si.sale_id = s.id 
+            WHERE si.product_id = ?
+            ORDER BY s.timestamp DESC LIMIT 20
+        """, (product_id,)).fetchall()
+    except Exception as e:
+        analytics = {"total_units": 0, "total_revenue": 0, "sale_count": 0}
+        last_sold = None
+        sales = []
+
     conn.close()
 
-    total_units = analytics['total_units'] if analytics['total_units'] else 0
-    total_revenue = analytics['total_revenue'] if analytics['total_revenue'] else 0
+    total_units = analytics['total_units'] if analytics and analytics.get('total_units') else 0
+    total_revenue = analytics['total_revenue'] if analytics and analytics.get('total_revenue') else 0
+    sale_count = analytics['sale_count'] if analytics and analytics.get('sale_count') else 0
     
     return templates.TemplateResponse(request, "product_detail.html", {
         "product": product, "sales": sales,
         "analytics": {
-            "total_units": total_units, "total_revenue": total_revenue,
-            "sale_count": analytics['sale_count'] if analytics['sale_count'] else 0,
-            "last_sold": analytics['last_sold'], "profit": total_revenue - (total_units * product['purchase_price'])
+            "total_units": total_units, 
+            "total_revenue": total_revenue,
+            "sale_count": sale_count, 
+            "last_sold": last_sold, 
+            "profit": total_revenue - (total_units * product['purchase_price'])
         }
     })
 
