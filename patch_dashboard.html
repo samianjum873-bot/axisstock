@@ -1,0 +1,28 @@
+        <!-- Google-Style Analytics KPI Dashboard Layer -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                <div class="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Total Unique Products</div>
+                <div id="kpiTotalItems" class="text-2xl font-black text-indigo-950 mt-1">0</div>
+                <div class="text-[10px] text-indigo-600/80 font-bold mt-1">Active variants in database</div>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                <div class="text-[10px] font-black uppercase text-emerald-500 tracking-wider">Total Stock Units</div>
+                <div id="kpiTotalStock" class="text-2xl font-black text-emerald-950 mt-1">0</div>
+                <div class="text-[10px] text-emerald-600/80 font-bold mt-1" id="kpiStockBreakdown">Books: 0 | Stationery: 0</div>
+            </div>
+            <div class="bg-gradient-to-br from-purple-50 to-purple-100/50 p-4 rounded-2xl border border-purple-100 shadow-sm">
+                <div class="text-[10px] font-black uppercase text-purple-600 tracking-wider">Top Trending Items</div>
+                <div id="kpiTrendingItems" class="text-xs font-bold text-purple-950 mt-1.5 space-y-0.5 truncate">
+                    <!-- Top trending dynamic targets -->
+                    <span class="text-[11px] text-slate-400">Waiting for loading...</span>
+                </div>
+            </div>
+            <!-- Recent Added Items View Card -->
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 rounded-2xl border border-blue-100 shadow-sm">
+                <div class="text-[10px] font-black uppercase text-blue-600 tracking-wider">Recently Added</div>
+                <div id="kpiRecentItems" class="text-xs font-bold text-blue-950 mt-1.5 space-y-0.5 truncate">
+                    <!-- Recent items template hook -->
+                    <span class="text-[11px] text-slate-400">Waiting for data...</span>
+                </div>
+            </div>
+        </div>
