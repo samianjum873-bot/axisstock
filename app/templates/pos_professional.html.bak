@@ -284,14 +284,10 @@ let allProducts = [];
 let cart = [];
 let currentPaymentMethod = 'Paid';
 
-// Initialize page automatically on load
+// Initialize page
 document.addEventListener("DOMContentLoaded", function() {
     initPage();
 });
-
-
-// Initialize page
-
 
 async function initPage() {
     await refreshData();
