@@ -172,22 +172,55 @@ async def sales_page(request: Request):
         "items_map": json.dumps(sales_items_map)
     })
 
-# --- SMART RELATIONAL INVENTORY APIs ---
+# --- SMART RELATIONAL INVENTORY APIs (FIXED DUPLICATE INTERCEPTOR) ---
 
 @app.get("/api/products/check-existing")
-async def check_existing(sku: str = None, barcode: str = None, name: str = None, s_class: str = None):
+async def check_existing(cat: str = None, barcode: str = None, name: str = None, s_class: str = None, sub: str = None, skip_name: str = "false"):
     conn = get_db()
     result = None
-    if sku:
-        result = conn.execute("SELECT * FROM products WHERE sku = ?", (sku,)).fetchone()
-    elif barcode:
-        result = conn.execute("SELECT * FROM products WHERE barcode = ?", (barcode,)).fetchone()
-    elif name and s_class:
-        result = conn.execute("SELECT * FROM products WHERE name = ? AND student_class = ?", (name, s_class)).fetchone()
-    elif name:
-        result = conn.execute("SELECT * FROM products WHERE name = ?", (name,)).fetchone()
+    should_skip_name = True if skip_name.lower() == "true" else False
+    
+    # 1. Barcode Check (Universal Rule)
+    if barcode and barcode.strip():
+        result = conn.execute("SELECT * FROM products WHERE barcode = ?", (barcode.strip(),)).fetchone()
+        
+    if not result:
+        clean_class = "".join(s_class.split()).lower() if s_class else ""
+        clean_sub = "".join(sub.split()).lower() if sub else ""
+        clean_name = "".join(name.split()).lower() if name else ""
+
+        all_prods = conn.execute("SELECT * FROM products").fetchall()
+        
+        for p in all_prods:
+            p_cat = p['category']
+            p_clean_class = "".join(p['student_class'].split()).lower() if p['student_class'] else ""
+            p_clean_sub = "".join(p['subject'].split()).lower() if p['subject'] else ""
+            p_clean_name = "".join(p['name'].split()).lower() if p['name'] else ""
+            
+            # Smart Check Optimization Strategy
+            if should_skip_name:
+                if cat == "Book" and p_cat == "Book":
+                    # Books duplicate check via Grade/Class + Subject ONLY
+                    if p_clean_class == clean_class and p_clean_sub == clean_sub:
+                        result = p
+                        break
+                elif cat == "Notebook" and p_cat == "Notebook":
+                    # Notebooks duplicate check via Grade/Class ONLY
+                    if p_clean_class == clean_class:
+                        result = p
+                        break
+            else:
+                # Stationery Fallback Check via Title Name + Class Matrix
+                if p_clean_name == clean_name and p_clean_class == clean_class:
+                    result = p
+                    break
+                    
     conn.close()
-    return result if result else {"exists": False}
+    if result:
+        res_dict = dict(result)
+        res_dict["exists"] = True
+        return res_dict
+    return {"exists": False}
 
 @app.post("/api/products/smart-add")
 async def smart_add(
@@ -210,13 +243,19 @@ async def smart_add(
     conn = get_db(); cursor = conn.cursor()
     is_force_new = True if force_new.lower() == "true" else False
 
-    if mode == 'update' and prod_id and not is_force_new:
-        cursor.execute("UPDATE products SET stock = stock + ?, purchase_price = ?, selling_price = ? WHERE id = ?", 
-                       (stock, p_price, s_price, prod_id))
+    if (mode == 'update' or mode == 'merge') and prod_id:
+        if mode == 'merge':
+            cursor.execute("UPDATE products SET stock = stock + ?, purchase_price = ?, selling_price = ? WHERE id = ?", 
+                           (stock, p_price, s_price, prod_id))
+        else:
+            cursor.execute("UPDATE products SET stock = stock + ?, purchase_price = ?, selling_price = ? WHERE id = ?", 
+                           (stock, p_price, s_price, prod_id))
     else:
         assigned_sku = generate_professional_sku(cat, name, s_class, sub)
         assigned_barcode = barcode.strip() if barcode.strip() else "BAR-" + "".join(random.choices(string.digits, k=10))
-        
+        if is_force_new and barcode.strip():
+            assigned_barcode += "-D" + "".join(random.choices(string.digits, k=3))
+            
         cursor.execute("""INSERT INTO products 
             (sku, barcode, name, category, student_class, subject, purchase_price, selling_price, stock, tag, variation) 
             VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
@@ -456,89 +495,6 @@ async def view_customer_detailed_profile(request: Request, cnic_id: str):
         "total_items": total_items_count
     }
     conn.close()
-
-    total_pending = sum((row['total_amount'] - (row['cash_paid'] or 0)) for row in history if row['payment_status'] != 'Paid')
-    stats_block = {
-        "total_orders": len(history), "total_spent": sum(row['total_amount'] for row in history),
-        "total_pending": total_pending, "total_profit": sum(row['profit'] for row in history if row['profit']),
-        "total_items": total_items_count
-    }
-    conn.close()
-    return templates.TemplateResponse(request, "customer_profile.html", {"profile": profile, "history": history, "items_map": items_map, "stats": stats_block})
-
-@app.get("/analytics")
-async def operations_analytics_dashboard(request: Request, range: str = "all"):
-    if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
-    conn = get_db()
-    
-    date_filter = ""
-    if range == "today":
-        date_filter = "WHERE date(timestamp) = date('now', 'localtime')"
-    elif range == "month":
-        date_filter = "WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now', 'localtime')"
-
-    # 1. Dashboard Main Stats
-    gross_row = conn.execute(f"SELECT SUM(total_amount) as gross, COUNT(id) as cnt, SUM(profit) as prf FROM sales {date_filter}").fetchone()
-    
-    # Secure handle for Empty State / No Sales
-    gross_revenue = gross_row['gross'] if gross_row and gross_row['gross'] else 0.0
-    total_sales_count = gross_row['cnt'] if gross_row and gross_row['cnt'] else 0
-    net_profit = gross_row['prf'] if gross_row and gross_row['prf'] else 0.0
-
-    # Udhaar filter logic
-    if date_filter:
-        udhaar_query = f"SELECT SUM(total_amount - cash_paid) as rc, COUNT(id) as cnt FROM sales {date_filter} AND payment_status != 'Paid'"
-    else:
-        udhaar_query = "SELECT SUM(total_amount - cash_paid) as rc, COUNT(id) as cnt FROM sales WHERE payment_status != 'Paid'"
-        
-    credit_row = conn.execute(udhaar_query).fetchone()
-    total_receivables = credit_row['rc'] if credit_row and credit_row['rc'] else 0.0
-    credit_sales_count = credit_row['cnt'] if credit_row and credit_row['cnt'] else 0
-
-    stock_val = conn.execute("SELECT SUM(stock * purchase_price) as val FROM products").fetchone()
-    stock_valuation = stock_val['val'] if stock_val['val'] else 0.0
-    
-    low_stock_count_row = conn.execute("SELECT COUNT(*) as cnt FROM products WHERE stock < 10").fetchone()
-    low_stock_count = low_stock_count_row['cnt'] if low_stock_count_row else 0
-
-    stats = {
-        "gross_revenue": gross_revenue,
-        "total_sales_count": total_sales_count,
-        "net_profit": net_profit,
-        "total_receivables": total_receivables,
-        "credit_sales_count": credit_sales_count,
-        "stock_valuation": stock_valuation,
-        "low_stock_count": low_stock_count
-    }
-
-    # 2. Top Selling Products
-    top_query = f"""
-        SELECT p.id as product_id, p.name as product_name, p.category, SUM(si.qty) as total_qty, SUM(si.qty * si.price) as total_revenue
-        FROM sale_items si
-        JOIN sales s ON si.sale_id = s.id
-        JOIN products p ON si.product_id = p.id
-        {date_filter}
-        GROUP BY si.product_id
-        ORDER BY total_qty DESC LIMIT 5
-    """
-    top_products = conn.execute(top_query).fetchall()
-
-    # 3. Sales by Class Allocation
-    class_query = f"""
-        SELECT student_class, COUNT(id) as volume, SUM(total_amount) as revenue 
-        FROM sales {date_filter} GROUP BY student_class ORDER BY revenue DESC
-    """
-    class_sales = conn.execute(class_query).fetchall()
-
-    # 4. Critical Low Stock Watchlist
-    low_stock_items = conn.execute("SELECT id, name, sku, stock, category FROM products WHERE stock < 10 ORDER BY stock ASC LIMIT 6").fetchall()
-
-    conn.close()
-    return templates.TemplateResponse(request, "analytics.html", {
-        "active_page": "analytics",
-        "selected_range": range,
-        "stats": stats,
-        "top_products": top_products,
-        "class_sales": class_sales,
-        "low_stock_items": low_stock_items
+    return templates.TemplateResponse(request, "customer_profile.html", {
+        "active_page": "customers", "profile": profile, "history": history, "stats": stats_block, "items_map": json.dumps(items_map)
     })

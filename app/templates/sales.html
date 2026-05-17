@@ -306,6 +306,30 @@
     window.addEventListener('DOMContentLoaded', () => {
         filteredRowsArray = Array.from(document.querySelectorAll('.sales-row'));
         applyDynamicProductDisplaySpecs();
+        
+        // Intelligent Interlocking Anchor Parsing Extension
+        const urlParamsParser = new URLSearchParams(window.location.search);
+        const autoFilterToken = urlParamsParser.get('filter');
+        if (autoFilterToken && document.getElementById('statusFilter')) {
+            document.getElementById('statusFilter').value = autoFilterToken;
+            
+            // Re-trigger global lookup array synchronization lifecycle parameters
+            const searchQuery = document.getElementById('salesSearch').value.toLowerCase();
+            const selectedCat = document.getElementById('categoryFilter').value.toLowerCase();
+            const allRows = Array.from(document.querySelectorAll('.sales-row'));
+            filteredRowsArray = [];
+            allRows.forEach(row => {
+                const saleId = row.getAttribute('data-id');
+                const rowText = row.innerText.toLowerCase();
+                const rowStatus = row.getAttribute('data-status');
+                let matchesCategory = (selectedCat === 'all' || selectedCat === 'all');
+                const matchesSearch = rowText.includes(searchQuery);
+                const matchesStatus = (rowStatus === autoFilterToken);
+                if(matchesSearch && matchesCategory && matchesStatus) { filteredRowsArray.push(row); }
+                else { row.style.display = 'none'; }
+            });
+        }
+
         processGlobalLedgerMetrics();
         renderPaginatedTableState();
     });

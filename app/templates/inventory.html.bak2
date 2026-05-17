@@ -1,0 +1,320 @@
+{% extends "index.html" %}
+
+{% block title %}Stock Management{% endblock %}
+
+{% block header_title %}Stock Inventory Management{% endblock %}
+
+{% block page_content %}
+    <div class="space-y-4">
+        <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <div class="flex space-x-2">
+                <select id="filterCat" onchange="toggleSubFilters(); masterFilter();" class="border text-[10px] p-2 rounded-lg font-black uppercase bg-slate-50">
+                    <option value="">All Categories</option>
+                    <option value="Stationery">Stationery</option>
+                    <option value="Book">Course Books</option>
+                    <option value="Notebook">Notebooks</option>
+                </select>
+                <input type="text" id="filterClass" onkeyup="masterFilter()" placeholder="Filter Class..." class="hidden border text-[10px] p-2 rounded-lg font-bold uppercase w-24">
+                <input type="text" id="filterSubject" onkeyup="masterFilter()" placeholder="Filter Subject..." class="hidden border text-[10px] p-2 rounded-lg font-bold uppercase w-32">
+            </div>
+            
+            <button onclick="openProductModal('add')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5">
+                <i class="fas fa-plus"></i> Add New Stock Item
+            </button>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase border-b shadow-sm">
+                    <tr>
+                        <th class="p-4">Item Details / Blueprint Identity</th>
+                        <th class="p-4">Category / Context Spec</th>
+                        <th class="p-4">Price Matrix</th>
+                        <th class="p-4 text-center">Current Stock</th>
+                        <th class="p-4 text-right">Action Log</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody" class="text-sm font-bold">
+                    <tr><td colspan="5" class="p-8 text-center text-slate-400">Loading master stock data engine...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="productModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all border border-slate-100">
+            <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
+                <h3 id="modalTitle" class="font-black uppercase tracking-wider text-xs">Add New Inventory Item</h3>
+                <button onclick="closeProductModal()" class="text-white text-lg font-bold hover:text-red-400 transition">&times;</button>
+            </div>
+
+            <form id="productForm" onsubmit="handleFormSubmission(event)" class="p-6 space-y-4">
+                <input type="hidden" id="formMode" value="add">
+                <input type="hidden" id="formProdId">
+
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Product Category *</label>
+                    <select id="prodCat" required onchange="adaptFormToCategory()" class="w-full border p-3 rounded-xl font-bold bg-slate-50 focus:border-indigo-600 focus:outline-none">
+                        <option value="Stationery">Stationery</option>
+                        <option value="Book">Course Book</option>
+                        <option value="Notebook">Notebook</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Item Title Name *</label>
+                    <input type="text" id="prodName" required placeholder="e.g. Oxford English Book 3 / Pilot Pen Blue" class="w-full border p-3 rounded-xl font-bold focus:border-indigo-600 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div id="classFieldWrapper">
+                        <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Student Class / Grade</label>
+                        <input type="text" id="prodClass" placeholder="e.g. Class-3" class="w-full border p-3 rounded-xl font-bold focus:border-indigo-600 focus:outline-none">
+                    </div>
+                    <div id="subjectFieldWrapper">
+                        <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Subject / Parameter</label>
+                        <input type="text" id="prodSubject" placeholder="e.g. English" class="w-full border p-3 rounded-xl font-bold focus:border-indigo-600 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Variation Description</label>
+                        <input type="text" id="prodVariation" placeholder="Optional (e.g. Pack of 10 / Spiral)" class="w-full border p-3 rounded-xl font-bold focus:border-indigo-600 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Custom Barcode Code</label>
+                        <input type="text" id="prodBarcode" placeholder="Leave empty to auto-generate" class="w-full border p-3 rounded-xl font-bold focus:border-indigo-600 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border">
+                    <div>
+                        <label class="block text-[9px] font-black uppercase text-slate-400 mb-1">Purchase Price *</label>
+                        <input type="number" step="0.01" id="prodPPrice" required placeholder="0.00" class="w-full border p-2 rounded-lg font-bold focus:border-indigo-600 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-black uppercase text-slate-400 mb-1">Selling Price *</label>
+                        <input type="number" step="0.01" id="prodSPrice" required placeholder="0.00" class="w-full border p-2 rounded-lg font-bold focus:border-indigo-600 focus:outline-none">
+                    </div>
+                    <div>
+                        <label id="stockLabel" class="block text-[9px] font-black uppercase text-slate-400 mb-1">Initial Stock *</label>
+                        <input type="number" id="prodStock" required placeholder="0" class="w-full border p-2 rounded-lg font-bold focus:border-indigo-600 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeProductModal()" class="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-wider py-3 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider py-3 rounded-xl shadow-md transition">Save Product Blueprint</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let fullInventory = [];
+
+        async function loadInventory() {
+            try {
+                const response = await fetch('/api/inventory');
+                fullInventory = await response.json();
+                renderTable(fullInventory);
+            } catch (error) {
+                console.error("Error fetching inventory elements:", error);
+            }
+        }
+
+        function toggleSubFilters() {
+            const cat = document.getElementById("filterCat").value;
+            const classInput = document.getElementById("filterClass");
+            const subInput = document.getElementById("filterSubject");
+
+            if (cat === "Book") {
+                classInput.classList.remove("hidden");
+                subInput.classList.remove("hidden");
+            } else if (cat === "Notebook") {
+                classInput.classList.remove("hidden");
+                subInput.classList.add("hidden");
+                subInput.value = "";
+            } else {
+                classInput.classList.add("hidden");
+                subInput.classList.add("hidden");
+                classInput.value = "";
+                subInput.value = "";
+            }
+        }
+
+        function masterFilter() {
+            const catToken = document.getElementById("filterCat").value.toLowerCase();
+            const classToken = document.getElementById("filterClass").value.toLowerCase();
+            const subToken = document.getElementById("filterSubject").value.toLowerCase();
+
+            const filtered = fullInventory.filter(item => {
+                const matchesCat = !catToken || item.category.toLowerCase().includes(catToken);
+                const matchesClass = !classToken || (item.student_class && item.student_class.toLowerCase().includes(classToken));
+                const matchesSub = !subToken || (item.subject && item.subject.toLowerCase().includes(subToken));
+                return matchesCat && matchesClass && matchesSub;
+            });
+
+            renderTable(filtered);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById("inventoryTableBody");
+            tbody.innerHTML = "";
+
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400">No items matched in global stock list</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement("tr");
+                tr.className = "border-b class-target-row hover:bg-slate-50/80 text-slate-700 transition";
+                
+                let contextMetaData = "";
+                if (item.student_class || item.subject) {
+                    contextMetaData = `<span class="text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded ml-2 border border-indigo-100">
+                        ${item.student_class || ''} ${item.subject ? '| ' + item.subject : ''}
+                    </span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-black text-slate-900 text-sm">${item.name}</div>
+                        <div class="text-[10px] font-mono text-slate-400 flex items-center space-x-2 mt-1">
+                            <span class="bg-slate-100 px-1 py-0.2 rounded text-slate-600 font-bold">SKU: ${item.sku}</span>
+                            <span>•</span>
+                            <span>Barcode: ${item.barcode || 'N/A'}</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-slate-900 text-white font-black text-[9px] uppercase tracking-wider">
+                            ${item.category}
+                        </span>
+                        ${contextMetaData}
+                    </td>
+                    <td class="p-4">
+                        <div class="text-[11px] text-slate-400 font-bold">Cost: Rs ${item.purchase_price}</div>
+                        <div class="text-slate-800 font-black text-xs mt-0.5">Sale: Rs ${item.selling_price}</div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-black ${item.stock < 10 ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}">
+                            ${item.stock} units
+                        </span>
+                    </td>
+                    <td class="p-4 text-right space-x-1">
+                        <button onclick="openProductModal('update', ${item.id})" class="text-xs bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 px-3 py-1.5 rounded-lg font-black uppercase text-[10px] transition">
+                            <i class="fas fa-edit"></i> Restock
+                        </button>
+                        <a href="/product/${item.id}" class="text-xs text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-lg font-black uppercase text-[10px] tracking-wide transition">
+                            Ledger →
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- MODEL UX CONTROL CONTROLLERS ---
+
+        function openProductModal(mode, prodId = null) {
+            document.getElementById("productForm").reset();
+            document.getElementById("formMode").value = mode;
+            document.getElementById("productModal").classList.remove("hidden");
+
+            if (mode === 'add') {
+                document.getElementById("modalTitle").innerText = "Create New Inventory Item Asset";
+                document.getElementById("formProdId").value = "";
+                document.getElementById("prodCat").disabled = false;
+                document.getElementById("stockLabel").innerText = "Initial Stock *";
+                adaptFormToCategory();
+            } else {
+                document.getElementById("modalTitle").innerText = "Update / Restock Existing Item Element";
+                document.getElementById("formProdId").value = prodId;
+                document.getElementById("prodCat").disabled = true;
+                document.getElementById("stockLabel").innerText = "Add New Stock *";
+                
+                // Populate exact match data elements array context
+                const item = fullInventory.find(x => x.id === prodId);
+                if (item) {
+                    document.getElementById("prodCat").value = item.category;
+                    document.getElementById("prodName").value = item.name;
+                    document.getElementById("prodClass").value = item.student_class || "";
+                    document.getElementById("prodSubject").value = item.subject || "";
+                    document.getElementById("prodVariation").value = item.variation || "";
+                    document.getElementById("prodBarcode").value = item.barcode || "";
+                    document.getElementById("prodPPrice").value = item.purchase_price;
+                    document.getElementById("prodSPrice").value = item.selling_price;
+                    document.getElementById("prodStock").value = ""; // Always prompt fresh delta add for safety
+                    adaptFormToCategory();
+                }
+            }
+        }
+
+        function closeProductModal() {
+            document.getElementById("productModal").classList.add("hidden");
+        }
+
+        function adaptFormToCategory() {
+            const cat = document.getElementById("prodCat").value;
+            const classWrapper = document.getElementById("classFieldWrapper");
+            const subWrapper = document.getElementById("subjectFieldWrapper");
+
+            if (cat === "Book") {
+                classWrapper.classList.remove("hidden");
+                subWrapper.classList.remove("hidden");
+            } else if (cat === "Notebook") {
+                classWrapper.classList.remove("hidden");
+                subWrapper.classList.add("hidden");
+                document.getElementById("prodSubject").value = "";
+            } else {
+                classWrapper.classList.add("hidden");
+                subWrapper.classList.add("hidden");
+                document.getElementById("prodClass").value = "";
+                document.getElementById("prodSubject").value = "";
+            }
+        }
+
+        async function handleFormSubmission(e) {
+            e.preventDefault();
+
+            const mode = document.getElementById("formMode").value;
+            const formData = new FormData();
+            
+            formData.append("mode", mode);
+            formData.append("prod_id", document.getElementById("formProdId").value);
+            formData.append("cat", document.getElementById("prodCat").value);
+            formData.append("name", document.getElementById("prodName").value);
+            formData.append("s_class", document.getElementById("prodClass").value);
+            formData.append("sub", document.getElementById("prodSubject").value);
+            formData.append("variation", document.getElementById("prodVariation").value);
+            formData.append("barcode", document.getElementById("prodBarcode").value);
+            formData.append("p_price", document.getElementById("prodPPrice").value);
+            formData.append("s_price", document.getElementById("prodSPrice").value);
+            formData.append("stock", document.getElementById("prodStock").value);
+            formData.append("force_new", "false");
+
+            try {
+                const response = await fetch('/api/products/smart-add', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.status === "success") {
+                    closeProductModal();
+                    await loadInventory();
+                } else {
+                    alert("Error saving data asset elements: " + result.message);
+                }
+            } catch (error) {
+                console.error("Form handling error runtime:", error);
+                alert("Network connectivity mapping drop anomaly.");
+            }
+        }
+
+        // Bootstrapping
+        document.addEventListener("DOMContentLoaded", loadInventory);
+    </script>
+{% endblock %}
