@@ -7,17 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .tab { display: none; } .active-tab { display: block; }
-        .sidebar-link.active { background: #312e81; border-right: 4px solid #facc15; }
-        .modal { display: none; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); overflow-y: auto; padding: 20px 0; }
-        .modal.active { display: flex; }
-        .hidden-field { display: none !important; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        /* Existing sidebar active styles if any */
+        .sidebar-link.active { background-color: rgb(30 27 75); }
     </style>
 </head>
-<body class="bg-slate-100 flex h-screen overflow-hidden font-sans">
+<body class="bg-slate-100 font-sans flex h-screen overflow-hidden">
 
+    <!-- Sidebar Layout -->
     <aside class="w-64 bg-indigo-950 text-white flex flex-col shadow-2xl z-50">
         <div class="p-6 border-b border-indigo-900">
             <h1 class="text-xl font-black italic uppercase text-yellow-400">EduStock <span class="text-white">PRO</span></h1>
@@ -32,27 +28,31 @@
             <a href="/sales" id="link-sales" class="sidebar-link {% if active_page == 'sales' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-history w-8"></i> <span class="font-bold text-xs">SALES HISTORY</span>
             </a>
-            <a href="/customers" id="link-customers" class="sidebar-link {% if active_page == 'customers' or active_page == 'customer_detail' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
+            <a href="/customers" id="link-customers" class="sidebar-link {% if active_page == 'customers' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-users w-8"></i> <span class="font-bold text-xs">CUSTOMER DATABASE</span>
             </a>
         </nav>
-        <div class="p-4 border-t border-indigo-900">
-            <a href="/logout" class="flex items-center p-4 w-full text-rose-400 font-black hover:bg-rose-500/10 rounded-xl transition">
-                <i class="fas fa-power-off w-8"></i> LOGOUT
-            </a>
-        </div>
     </aside>
 
-    <main class="flex-1 flex flex-col overflow-hidden">
+    <!-- Main Core App Wrapper -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        <!-- App Dynamic Header -->
         <header class="h-16 bg-white border-b flex items-center justify-between px-8 shadow-sm">
             <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight" id="headerTitle">{% block header_title %}Counter Billing Terminal{% endblock %}</h2>
             <div class="flex items-center space-x-4">
-                <button onclick="toggleModal(true)" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg hover:bg-indigo-700 transition tracking-widest uppercase">
-                    + Add New Stock Item
-                </button>
+                <!-- Hreader action elements inject here dynmically -->
+                {% block header_actions %}
+                    {% if active_page == 'pos' %}
+                    <button onclick="toggleModal(true)" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg hover:bg-indigo-700 transition tracking-widest uppercase">
+                        + Add New Stock Item
+                    </button>
+                    {% endif %}
+                {% endblock %}
             </div>
         </header>
 
+        <!-- Main Workspace Router Slot -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
             <!-- Analytics Dashboard - Only show on POS page -->
             {% if active_page == 'pos' %}
@@ -66,22 +66,24 @@
                     <h3 id="statLow" class="text-lg font-black text-rose-600 italic">0 Items</h3>
                 </div>
                 <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-emerald-500">
-                    <p class="text-[10px] font-black text-slate-400 uppercase">Today's Profit</p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Profit Today</p>
                     <h3 id="statProfit" class="text-lg font-black text-emerald-600 italic">Rs. 0</h3>
                 </div>
                 <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-amber-500">
-                    <p class="text-[10px] font-black text-slate-400 uppercase">Pending Udhaar</p>
-                    <h3 id="statUdhaar" class="text-lg font-black text-amber-700 italic">Rs. 0</h3>
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Total Udhaar/Khata</p>
+                    <h3 id="statUdhaar" class="text-lg font-black text-amber-600 italic">Rs. 0</h3>
                 </div>
             </div>
             {% endif %}
 
             {% block page_content %}{% endblock %}
         </div>
-    </main>
+    </div>
 
-    <div id="addModal" class="modal fixed inset-0 z-[100] items-center justify-center">
-        <div class="bg-white rounded-3xl shadow-2xl w-[90%] max-w-2xl overflow-hidden border-4 border-indigo-950">
+    <!-- POS Specific Global Add Modal (Only renders and works on POS page context) -->
+    {% if active_page == 'pos' %}
+    <div id="addModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl w-[90%] max-w-2xl overflow-hidden border-4 border-indigo-950 mx-auto mt-20">
             <div class="bg-indigo-950 p-5 text-white flex justify-between items-center">
                 <h3 class="text-xl font-black uppercase italic">Inventory Logic System</h3>
                 <button onclick="toggleModal(false)" class="text-2xl">&times;</button>
@@ -90,450 +92,54 @@
                 <input type="hidden" name="mode" id="formMode" value="new">
                 <input type="hidden" name="prod_id" id="prod_id">
                 <input type="hidden" name="force_new" id="forceNew" value="false">
-                <input type="hidden" name="sub" id="hiddenSubject" value="">
-
-                <div id="existingAlert" class="hidden bg-amber-100 border-l-4 border-amber-500 p-4 rounded-2xl mb-4">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <strong class="text-amber-800 uppercase text-xs">Item already exists</strong>
-                            <p class="text-slate-600 text-[11px]">Update existing stock or create a new product entry.</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button type="button" onclick="setEntryMode(false)" id="btnMerge" class="bg-amber-500 text-white text-[10px] font-black p-2 rounded-lg">ADD TO EXISTING</button>
-                            <button type="button" onclick="setEntryMode(true)" id="btnSeparate" class="bg-slate-200 text-slate-700 text-[10px] font-black p-2 rounded-lg">ADD SEPARATELY</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <select name="cat" id="catSelect" onchange="handleCatChange()" class="border-2 p-3 rounded-xl font-black bg-indigo-50 border-indigo-100">
-                        <option value="Stationery">Stationery</option>
-                        <option value="Book">Course Book</option>
-                        <option value="Notebook">Notebook</option>
-                    </select>
-                    <div id="statItemNameField">
-                        <input type="text" name="name" id="statName" onkeyup="checkDuplicate()" placeholder="Item Name (e.g. Sharpener)" class="w-full border-2 p-3 rounded-xl font-bold">
-                    </div>
-                </div>
-
-                <div id="stationeryFields" class="grid grid-cols-3 gap-2">
-                    <input type="text" name="tag" id="statBrand" onkeyup="checkDuplicate()" placeholder="Brand" class="border p-2 rounded-lg text-sm font-bold">
-                    <input type="text" name="variation" id="statColor" onkeyup="checkDuplicate()" placeholder="Color/Specs" class="border p-2 rounded-lg text-sm font-bold">
-                </div>
-
-                <div id="bookFields" class="hidden-field grid grid-cols-3 gap-2">
-                    <input type="text" name="s_class" id="bookClass" onkeyup="checkDuplicate()" placeholder="Class (e.g. 10, 1)" class="border p-2 rounded-lg text-sm font-bold">
-                    <input type="text" name="name" id="bookName" onkeyup="checkDuplicate()" placeholder="Subject Name" class="col-span-2 border p-2 rounded-lg text-sm font-bold">
-                </div>
-
-                <div class="bg-indigo-900 p-4 rounded-2xl grid grid-cols-2 gap-3">
+                
+                <div class="bg-indigo-900 p-4 rounded-2xl grid grid-cols-3 gap-3">
                     <input type="number" name="stock" id="totalQty" placeholder="Quantity" class="p-3 rounded-lg font-black text-lg">
                     <input type="number" step="any" name="p_price" id="perItemCost" placeholder="Cost Price" class="p-3 rounded-lg font-black text-lg">
                     <input type="number" step="any" name="s_price" id="perItemSell" placeholder="Sell Price" class="p-3 rounded-lg font-black text-lg border-2 border-yellow-400">
                 </div>
-
-                <button id="submitBtn" type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase">Confirm Entry ✅</button>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase">Save Execution Entry</button>
             </form>
         </div>
     </div>
+    {% endif %}
 
     <script>
         let inventory = []; let cart = []; let currentWizardStep = 1;
 
         async function refreshData() {
+            // If we are on the new inventory page, DO NOT let this old script run or overwrite anything
+            if (window.location.pathname === '/inventory') {
+                return; 
+            }
+
             const res = await fetch('/api/inventory');
             inventory = await res.json();
             
-            // Only load analytics if on POS page (analytics elements exist)
             if (document.getElementById('statValue')) {
                 const statRes = await fetch('/api/v2/analytics');
                 const stats = await statRes.json();
-
                 document.getElementById('statValue').innerText = `Rs. ${stats.stock_value.toLocaleString()}`;
                 document.getElementById('statLow').innerText = `${stats.low_stock} Items`;
                 document.getElementById('statProfit').innerText = `Rs. ${stats.profit_today.toLocaleString()}`;
                 document.getElementById('statUdhaar').innerText = `Rs. ${stats.udhaar.toLocaleString()}`;
             }
 
-            if (document.getElementById('inventoryTableBody')) renderInventoryTable();
+            if (document.getElementById('inventoryTableBody') && window.location.pathname !== '/inventory') renderInventoryTable();
             if (document.getElementById('wizardCategory')) renderWizardProducts();
-            if (document.getElementById('recentSalesHistoryLog')) loadRecentHistoryLogs();
         }
 
         function toggleModal(show) {
-            document.getElementById('addModal').classList.toggle('active', show);
-            if(!show) {
-                document.getElementById('addProdForm').reset();
-                document.getElementById('existingAlert').classList.add('hidden');
-                document.getElementById('formMode').value = 'new';
-                document.getElementById('forceNew').value = 'false';
-                setEntryMode(true);
-            }
+            const modal = document.getElementById('addModal');
+            if(!modal) return;
+            if(show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
         }
 
-        function handleCatChange() {
-            const cat = document.getElementById('catSelect').value;
-            document.getElementById('stationeryFields').classList.toggle('hidden-field', cat !== 'Stationery');
-            document.getElementById('bookFields').classList.toggle('hidden-field', cat === 'Stationery');
-            checkDuplicate();
+        if (window.location.pathname Atlantic !== '/inventory') {
+            document.addEventListener("DOMContentLoaded", refreshData);
         }
-
-        async function checkDuplicate() {
-            const cat = document.getElementById('catSelect').value;
-            let query = '';
-
-            if(cat === 'Stationery') {
-                const name = document.getElementById('statName').value.trim();
-                const brand = document.getElementById('statBrand').value.trim();
-                const color = document.getElementById('statColor').value.trim();
-                const tag = `${brand} ${color}`.trim();
-                if(name.length < 2 || tag.length < 1) {
-                    document.getElementById('existingAlert').classList.add('hidden');
-                    setEntryMode(true);
-                    return;
-                }
-                query = `name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`;
-            } else {
-                const name = document.getElementById('bookName').value.trim();
-                const s_class = document.getElementById('bookClass').value.trim();
-                if(name.length < 2 || s_class.length < 1) {
-                    document.getElementById('existingAlert').classList.add('hidden');
-                    setEntryMode(true);
-                    return;
-                }
-                query = `name=${encodeURIComponent(name)}&s_class=${encodeURIComponent(s_class)}`;
-            }
-
-            try {
-                const res = await fetch(`/api/products/check-existing?${query}`);
-                const data = await res.json();
-                if(data && data.id) {
-                    document.getElementById('existingAlert').classList.remove('hidden');
-                    document.getElementById('prod_id').value = data.id;
-                    document.getElementById('formMode').value = 'update';
-                    setEntryMode(false);
-                } else {
-                    document.getElementById('existingAlert').classList.add('hidden');
-                    document.getElementById('prod_id').value = '';
-                    document.getElementById('formMode').value = 'new';
-                    setEntryMode(true);
-                }
-            } catch (error) {
-                document.getElementById('existingAlert').classList.add('hidden');
-                setEntryMode(true);
-            }
-        }
-
-        function setEntryMode(isNew) {
-            document.getElementById('forceNew').value = isNew ? 'true' : 'false';
-            document.getElementById('formMode').value = isNew ? 'new' : 'update';
-            const mergeBtn = document.getElementById('btnMerge');
-            const separateBtn = document.getElementById('btnSeparate');
-            const submitBtn = document.getElementById('submitBtn');
-
-            if(isNew) {
-                mergeBtn.className = 'bg-slate-200 text-slate-700 text-[10px] font-black p-2 rounded-lg';
-                separateBtn.className = 'bg-amber-500 text-white text-[10px] font-black p-2 rounded-lg';
-                submitBtn.innerText = 'SAVE AS NEW ENTRY ✅';
-                submitBtn.className = 'w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase';
-            } else {
-                mergeBtn.className = 'bg-amber-500 text-white text-[10px] font-black p-2 rounded-lg';
-                separateBtn.className = 'bg-slate-200 text-slate-700 text-[10px] font-black p-2 rounded-lg';
-                submitBtn.innerText = 'UPDATE EXISTING STOCK 🔄';
-                submitBtn.className = 'w-full bg-amber-500 text-white py-4 rounded-xl font-black text-xl shadow-xl uppercase';
-            }
-        }
-
-        async function submitInventoryForm(e) {
-            e.preventDefault();
-            const cat = document.getElementById('catSelect').value;
-            const formData = new FormData(document.getElementById('addProdForm'));
-
-            if(cat === 'Stationery') {
-                const name = document.getElementById('statName').value.trim();
-                const tag = `${document.getElementById('statBrand').value.trim()} ${document.getElementById('statColor').value.trim()}`.trim();
-                formData.set('name', name);
-                formData.set('tag', tag);
-            } else {
-                const name = document.getElementById('bookName').value.trim();
-                const s_class = document.getElementById('bookClass').value.trim();
-                formData.set('name', name);
-                formData.set('s_class', s_class);
-                formData.set('sub', name);
-            }
-
-            const response = await fetch('/api/products/smart-add', { method: 'POST', body: formData });
-            const data = await response.json();
-            if(data.status === 'success') {
-                toggleModal(false);
-                refreshData();
-            }
-        }
-
-        function openProductDetail(id) {
-            window.location.href = `/product/${id}`;
-        }
-
-        function renderInventoryTable() {
-            const body = document.getElementById('inventoryTableBody');
-            body.innerHTML = inventory.map(item => `
-                <tr class="border-b hover:bg-slate-50">
-                    <td class="p-4">
-                        <div class="font-black text-slate-900">${item.name}</div>
-                        <div class="text-[11px] text-slate-500 mt-1">${item.category === 'Stationery' ? item.tag + ' ' + item.variation : 'Class ' + item.student_class + ' • ' + item.subject}</div>
-                    </td>
-                    <td class="p-4"><span class="bg-slate-200 px-2 py-1 rounded text-[10px] uppercase font-black">${item.category}</span></td>
-                    <td class="p-4 text-slate-700 text-sm">
-                        <div><strong>Buy:</strong> Rs. ${item.purchase_price}</div>
-                        <div><strong>Sell:</strong> Rs. ${item.selling_price}</div>
-                    </td>
-                    <td class="p-4 text-center">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${item.stock === 0 ? 'bg-rose-100 text-rose-700' : item.stock < 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${item.stock} pcs</span>
-                    </td>
-                    <td class="p-4 text-right">
-                        <button type="button" onclick="openProductDetail(${item.id})" class="bg-indigo-600 text-white text-[10px] font-black uppercase px-3 py-2 rounded-xl">View</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function toggleSubFilters() {
-            const cat = document.getElementById('filterCat').value;
-            document.getElementById('filterClass').classList.toggle('hidden', cat === 'Stationery' || cat === '');
-            document.getElementById('filterSubject').classList.toggle('hidden', cat === 'Stationery' || cat === '');
-        }
-
-        function masterFilter() {
-            const cat = document.getElementById('filterCat').value.toLowerCase();
-            const cls = document.getElementById('filterClass').value.toLowerCase();
-            const sub = document.getElementById('filterSubject').value.toLowerCase();
-
-            const filtered = inventory.filter(item => {
-                const matchCat = !cat || item.category.toLowerCase() === cat;
-                const matchCls = !cls || (item.student_class && item.student_class.toLowerCase().includes(cls));
-                const matchSub = !sub || (item.subject && item.subject.toLowerCase().includes(sub));
-                return matchCat && matchCls && matchSub;
-            });
-
-            const body = document.getElementById('inventoryTableBody');
-            body.innerHTML = filtered.map(item => `
-                <tr class="border-b hover:bg-slate-50">
-                    <td class="p-4">
-                        <div class="font-black text-slate-900">${item.name}</div>
-                        <div class="text-[11px] text-slate-500 mt-1">${item.category === 'Stationery' ? item.tag + ' ' + item.variation : 'Class ' + item.student_class + ' • ' + item.subject}</div>
-                    </td>
-                    <td class="p-4"><span class="bg-slate-200 px-2 py-1 rounded text-[10px] uppercase font-black">${item.category}</span></td>
-                    <td class="p-4 text-slate-700 text-sm">
-                        <div><strong>Buy:</strong> Rs. ${item.purchase_price}</div>
-                        <div><strong>Sell:</strong> Rs. ${item.selling_price}</div>
-                    </td>
-                    <td class="p-4 text-center">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${item.stock === 0 ? 'bg-rose-100 text-rose-700' : item.stock < 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${item.stock} pcs</span>
-                    </td>
-                    <td class="p-4 text-right">
-                        <button type="button" onclick="openProductDetail(${item.id})" class="bg-indigo-600 text-white text-[10px] font-black uppercase px-3 py-2 rounded-xl">View</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function handleWizardCategoryChange() {
-            const val = document.getElementById('wizardCategory').value;
-            document.getElementById('setLogicFields').classList.toggle('hidden-field', val !== 'Set');
-            document.getElementById('specificProductFields').classList.toggle('hidden-field', val === 'Set' || val === '');
-            renderWizardProducts();
-        }
-
-        function renderWizardProducts() {
-            const cat = document.getElementById('wizardCategory').value;
-            const listContainer = document.getElementById('wizardProductList');
-            if(!cat || cat === 'Set') return;
-
-            const filtered = inventory.filter(i => i.category === cat && i.stock > 0);
-            if(filtered.length === 0) {
-                listContainer.innerHTML = `<p class="p-4 text-xs font-bold text-slate-400 text-center">No active stock available for this category.</p>`;
-                return;
-            }
-
-            listContainer.innerHTML = filtered.map(i => `
-                <div class="p-3 flex justify-between items-center hover:bg-slate-50 text-xs font-bold">
-                    <div>
-                        <p class="text-slate-800">${i.name} ${i.category === 'Stationery' ? `(${i.tag})` : ''}</p>
-                        <p class="text-[10px] text-slate-400 uppercase">${i.category === 'Stationery' ? i.variation : `Class ${i.student_class} | ${i.subject}`}</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="text-indigo-600 font-black">Rs. ${i.selling_price}</span>
-                        <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">Stock: ${i.stock}</span>
-                        <button onclick="addToCart(${i.id})" class="bg-indigo-600 text-white px-2.5 py-1 rounded-lg text-[10px] uppercase font-black hover:bg-indigo-700 transition">+ Add</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function filterWizardProducts() {
-            const q = document.getElementById('wizardProductSearch').value.toLowerCase();
-            const items = document.getElementById('wizardProductList').children;
-            for(let item of items) {
-                if(item.innerText) {
-                    item.style.display = item.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
-                }
-            }
-        }
-
-        function loadClassSetIntoCart() {
-            const cls = document.getElementById('targetClassInput').value.trim().toLowerCase();
-            if(!cls) return alert('Please input class specifier!');
-
-            const matched = inventory.filter(i => (i.category === 'Book' || i.category === 'Notebook') && i.student_class.toLowerCase() === cls && i.stock > 0);
-            if(matched.length === 0) return alert('No set matches found for this targeted class.');
-
-            matched.forEach(i => addToCart(i.id));
-            document.getElementById('targetClassInput').value = '';
-        }
-
-        function addToCart(id) {
-            const prod = inventory.find(i => i.id === id);
-            const exist = cart.find(c => c.id === id);
-            if(exist) {
-                if(exist.qty >= prod.stock) return alert('Cannot exceed maximum available stock inventory count!');
-                exist.qty++;
-            } else {
-                cart.push({ id: prod.id, name: prod.name, selling_price: prod.selling_price, purchase_price: prod.purchase_price, qty: 1 });
-            }
-            updateCartUI();
-        }
-
-        function changeCartQty(id, delta) {
-            const prod = inventory.find(i => i.id === id);
-            const item = cart.find(c => c.id === id);
-            item.qty += delta;
-            if(item.qty <= 0) {
-                cart = cart.filter(c => c.id !== id);
-            } else if (item.qty > prod.stock) {
-                alert('Max warehouse stock reached.');
-                item.qty = prod.stock;
-            }
-            updateCartUI();
-        }
-
-        function clearActiveBasket() { cart = []; updateCartUI(); }
-
-        function updateCartUI() {
-            const container = document.getElementById('cartItems');
-            document.getElementById('cartCount').innerText = `${cart.reduce((a, b) => a + b.qty, 0)} Items Added`;
-
-            if(cart.length === 0) {
-                container.innerHTML = `<p class="text-slate-400 italic text-center py-6">Invoice basket is completely empty.</p>`;
-                document.getElementById('orderTotal').innerText = '0';
-                return;
-            }
-
-            container.innerHTML = cart.map(c => `
-                <div class="flex justify-between items-center border-b pb-2">
-                    <div class="flex-1 min-w-0 pr-2">
-                        <p class="truncate text-slate-800">${c.name}</p>
-                        <p class="text-[10px] text-slate-400">Rs. ${c.selling_price} x ${c.qty}</p>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="changeCartQty(${c.id}, -1)" class="bg-slate-200 px-2 py-0.5 rounded text-xs font-bold">-</button>
-                        <span class="font-black font-mono">${c.qty}</span>
-                        <button onclick="changeCartQty(${c.id}, 1)" class="bg-slate-200 px-2 py-0.5 rounded text-xs font-bold">+</button>
-                    </div>
-                </div>
-            `).join('');
-
-            const total = cart.reduce((a, b) => a + (b.selling_price * b.qty), 0);
-            document.getElementById('orderTotal').innerText = total.toLocaleString();
-            document.getElementById('lblPreviewTotal').innerText = total.toLocaleString();
-        }
-
-        function goToStep(step) {
-            if(step === 2 && cart.length === 0) return alert('Please add at least 1 item to the inventory checkout basket!');
-            if(step === 3) {
-                const sName = document.getElementById('custStudentName').value.trim();
-                const phone = document.getElementById('custPhone').value.trim();
-                if(!sName || !phone) return alert('Student name and active phone parameters are strictly required!');
-                document.getElementById('lblPreviewUser').innerText = `${sName} (F/O: ${document.getElementById('custFatherName').value || 'N/A'})`;
-                document.getElementById('lblPreviewClass').innerText = document.getElementById('custClassSection').value || 'General Management';
-                calculateSplitUdhaar();
-            }
-            document.getElementById(`wizard-step-${currentWizardStep}`).classList.add('hidden-field');
-            document.getElementById(`wizard-step-${step}`).classList.remove('hidden-field');
-            document.getElementById(`step${currentWizardStep}-badge`).className = 'text-slate-400';
-            document.getElementById(`step${step}-badge`).className = 'text-indigo-600';
-            currentWizardStep = step;
-        }
-
-        function toggleCreditSplitForm(show) {
-            document.getElementById('creditSplitInterface').classList.toggle('hidden-field', !show);
-            calculateSplitUdhaar();
-        }
-
-        function calculateSplitUdhaar() {
-            const total = cart.reduce((a, b) => a + (b.selling_price * b.qty), 0);
-            const cash = parseFloat(document.getElementById('splitCashReceived').value) || 0;
-            const balance = total - cash;
-            document.getElementById('splitUdhaarBalance').value = balance < 0 ? 0 : balance;
-        }
-
-        async function processFinalSale(mode) {
-            const sName = document.getElementById('custStudentName').value.trim();
-            const fName = document.getElementById('custFatherName').value.trim();
-            const clsSec = document.getElementById('custClassSection').value.trim();
-            const phone = document.getElementById('custPhone').value.trim();
-            const total = cart.reduce((a, b) => a + (b.selling_price * b.qty), 0);
-            let status = 'Paid';
-            if(mode === 'CreditSplit') {
-                const cash = parseFloat(document.getElementById('splitCashReceived').value) || 0;
-                status = cash === 0 ? 'Credit' : `Partial (Cash: ${cash})`;
-            }
-            const pName = `${sName} | Father: ${fName || 'N/A'} | Class: ${clsSec || 'N/A'}`;
-            const bodyData = new URLSearchParams();
-            bodyData.append('p_name', pName);
-            bodyData.append('p_phone', phone);
-            bodyData.append('items_json', JSON.stringify(cart));
-            bodyData.append('total', total);
-            bodyData.append('status', status);
-            const res = await fetch('/api/checkout', { method: 'POST', body: bodyData });
-            const data = await res.json();
-            if(data.status === 'success') {
-                alert(`Invoice successfully processed!\nReceipt Generated ID: ${data.receipt}`);
-                clearActiveBasket();
-                document.getElementById('addProdForm').reset();
-                document.getElementById('creditSplitInterface').classList.add('hidden-field');
-                document.getElementById('splitCashReceived').value = 0;
-                goToStep(1);
-                refreshData();
-            } else {
-                alert(`Error executing processing logic: ${data.message}`);
-            }
-        }
-
-        async function loadRecentHistoryLogs() {
-            const res = await fetch('/api/sales-recent');
-            const data = await res.json();
-            const body = document.getElementById('recentSalesHistoryLog');
-
-            if(data.length === 0) {
-                body.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-slate-400">No terminal history transactions logged yet.</td></tr>`;
-                return;
-            }
-
-            body.innerHTML = data.map(log => `
-                <tr class="hover:bg-slate-50 border-b">
-                    <td class="p-3 font-mono text-indigo-600">${log.receipt_number}</td>
-                    <td class="p-3">Rs. ${log.total_amount.toLocaleString()}</td>
-                    <td class="p-3">
-                        <span class="px-2 py-0.5 rounded text-[10px] uppercase font-black ${log.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-                            ${log.payment_status}
-                        </span>
-                    </td>
-                    <td class="p-3 text-slate-400 text-[11px]">${log.timestamp}</td>
-                </tr>
-            `).join('');
-        }
-
-        window.onload = refreshData;
     </script>
+
 </body>
 </html>
