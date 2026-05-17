@@ -38,7 +38,7 @@
             <!-- 1. TOTAL QUANTITY AVAILABLE -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
-                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Dukan Me Kul Maal (Stock)</div>
+                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Dukan Me Available Stock</div>
                     <div class="text-3xl font-black text-slate-800">{{ product.stock }} <span class="text-sm font-bold text-slate-400 uppercase">Units</span></div>
                 </div>
                 <div class="mt-3">
@@ -54,51 +54,51 @@
                     <div class="flex justify-between items-center text-[10px] font-black uppercase tracking-wide mt-1.5">
                         <span>Status:</span>
                         {% if product.stock == 0 %}
-                            <span class="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">Khatam Haal</span>
+                            <span class="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-black">Stock Khatam</span>
                         {% elif product.stock < 10 %}
-                            <span class="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Thora Maal Baqi</span>
+                            <span class="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-black">Low Stock</span>
                         {% else %}
-                            <span class="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Behtareen Stock</span>
+                            <span class="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-black">In Stock</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- 2. PURCHASE PRICE / TOTAL INVESTMENT -->
+            <!-- 2. TOTAL BUYING COST (TOTAL INVESTMENT) -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
-                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Total Kharid Lagat (Investment)</div>
+                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Kul Kharid Lagat (Total Buying Cost)</div>
                     <div class="text-2xl font-black text-slate-800">Rs. {{ (product.stock * product.purchase_price) | round(2) }}</div>
+                    <p class="text-[10px] text-slate-400 mt-1">Maujooda stock ki buying keemat</p>
                 </div>
                 <div class="text-[11px] font-medium text-slate-500 mt-4 border-t border-slate-100 pt-2 flex justify-between">
-                    <span>Per Item Kharid:</span>
+                    <span>Per Item Buying:</span>
                     <span class="font-bold text-slate-700">Rs. {{ product.purchase_price }}</span>
                 </div>
             </div>
 
-            <!-- 3. SELLING PRICE / TOTAL NET WORTH VALUE -->
+            <!-- 3. SELLING PRICE & BREAKDOWN -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
-                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Kul Maal Ki Keemat (Net Worth)</div>
+                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Expected Retail Value</div>
                     <div class="text-2xl font-black text-slate-800">Rs. {{ (product.stock * product.selling_price) | round(2) }}</div>
+                    <p class="text-[10px] text-slate-400 mt-1">Poora stock bikne par total value</p>
                 </div>
                 <div class="text-[11px] font-medium text-slate-500 mt-4 border-t border-slate-100 pt-2 flex justify-between">
-                    <span>Per Item Sale:</span>
+                    <span>Per Item Selling:</span>
                     <span class="font-bold text-slate-700">Rs. {{ product.selling_price }}</span>
                 </div>
             </div>
 
-            <!-- 4. NET PROFIT MARGINS -->
+            <!-- 4. GROSS UNITS SOLD -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
-                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Umeedan Kul Munafa (Total Profit)</div>
-                    {% set per_unit_profit = product.selling_price - product.purchase_price %}
-                    {% set total_expected_profit = per_unit_profit * product.stock %}
-                    <div class="text-2xl font-black text-emerald-600">Rs. {{ total_expected_profit | round(2) }}</div>
+                    <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Kitne Items Sell Ho Chuke Hain</div>
+                    <div class="text-3xl font-black text-indigo-600">{{ analytics.total_units or 0 }} <span class="text-xs text-slate-400 font-bold uppercase">Sold</span></div>
                 </div>
                 <div class="text-[11px] font-medium text-slate-500 mt-4 border-t border-slate-100 pt-2 flex justify-between">
-                    <span>Per Item Bachat:</span>
-                    <span class="font-black text-emerald-600">Rs. {{ per_unit_profit | round(2) }}</span>
+                    <span>Total Invoices Issued:</span>
+                    <span class="font-bold text-slate-700">{{ analytics.sale_count or 0 }} Bills</span>
                 </div>
             </div>
 
@@ -117,8 +117,8 @@
                         <div class="py-2.5 flex justify-between"><span class="text-slate-500">Subject/Variant</span> <span class="font-bold text-slate-800">{{ product.subject or 'General' }}</span></div>
                         <div class="py-2.5 flex justify-between"><span class="text-slate-500">Stock Serial (SKU)</span> <span class="font-mono bg-slate-50 px-2 py-0.5 rounded text-xs text-slate-600 font-bold border">{{ product.sku }}</span></div>
                         <div class="py-2.5 flex justify-between"><span class="text-slate-500">System Barcode</span> <span class="font-mono text-slate-600 text-xs font-bold">{{ product.barcode or 'None Generated' }}</span></div>
-                        {% if product.tag or product.variation %}
-                        <div class="py-2.5 flex justify-between"><span class="text-slate-500">Attributes Matrix</span> <span class="font-medium text-slate-700">{{ product.tag or '' }} {{ product.variation or '' }}</span></div>
+                        {% if product.variation %}
+                        <div class="py-2.5 flex justify-between"><span class="text-slate-500">Attributes Matrix</span> <span class="font-medium text-slate-700">{{ product.variation }}</span></div>
                         {% endif %}
                     </div>
                 </div>
@@ -127,63 +127,75 @@
                     <h4 class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Dukandaar Recommendation</h4>
                     <p class="text-xs text-slate-600 leading-relaxed">
                         {% if product.stock < 10 %}
-                            Is item ka stock tezi se khatam ho raha hai. Vendor se raabta karein taake supply chain rukay nahi.
+                            Is item ka stock tezi se khatam ho raha hai. Restock or delta check jaldi apply karein.
                         {% else %}
-                            Stock level safe zone mein hai. Sales track karte rahein aur pricing model ko optimum level par rakhein.
+                            Stock aur credit health check maintain rakhein taake cash flow balance rhey.
                         {% endif %}
                     </p>
                 </div>
             </div>
 
-            <!-- RIGHT TWO COLUMNS: LIVE PERFORMANCE ANALYTICS -->
+            <!-- RIGHT TWO COLUMNS: LIVE PERFORMANCE & CREDIT METRICS -->
             <div class="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
                     <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
                         <div>
-                            <h3 class="text-sm font-black uppercase tracking-wider text-slate-800">Business Sales Analytics</h3>
-                            <p class="text-xs text-slate-400">Lifetime operational conversion stats for this product entity.</p>
+                            <h3 class="text-sm font-black uppercase tracking-wider text-slate-800">Business Sales & Credit Analytics</h3>
+                            <p class="text-xs text-slate-400">Total collection status, cleared profit, and pending credit summary.</p>
                         </div>
                         <span class="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-100 text-[10px] font-black tracking-wide text-indigo-600 uppercase">Live Metrics</span>
                     </div>
 
+                    <!-- REVENUE, PROFIT, AND UDHAAR GRID -->
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="bg-gradient-to-br from-slate-50 to-slate-100/50 p-4 rounded-2xl border border-slate-200/60">
-                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Gross Units Sold</span>
-                            <span class="text-3xl font-black text-slate-800">{{ analytics.total_units }} <span class="text-xs text-slate-400 font-bold uppercase">Pcs</span></span>
-                        </div>
                         <div class="bg-gradient-to-br from-slate-50 to-slate-100/50 p-4 rounded-2xl border border-slate-200/60">
                             <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Total Net Revenue</span>
                             <span class="text-2xl font-black text-slate-800">Rs. {{ analytics.total_revenue | round(2) }}</span>
                         </div>
-                        <div class="bg-gradient-to-br from-emerald-50/40 to-emerald-50 p-4 rounded-2xl border border-emerald-200/60">
-                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 block mb-1">Net Cleared Profit</span>
+                        <div class="bg-gradient-to-br from-emerald-50/30 to-emerald-50 p-4 rounded-2xl border border-emerald-200/60">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 block mb-1">Net Received Profit</span>
                             <span class="text-2xl font-black text-emerald-800">Rs. {{ analytics.profit | round(2) }}</span>
+                        </div>
+                        
+                        <!-- LIVE CREDIT / PENDING CARD (INTERACTIVE FILTER TOGGLE) -->
+                        {% set credit_count = namespace(value=0) %}
+                        {% set credit_amount = namespace(value=0) %}
+                        {% for sale in sales %}
+                            {% if sale.payment_status != 'Paid' %}
+                                {% set credit_count.value = credit_count.value + 1 %}
+                                {% set credit_amount.value = credit_amount.value + (sale.price | float) %}
+                            {% endif %}
+                        {% endfor %}
+                        <div onclick="toggleCreditFilter()" class="bg-gradient-to-br from-rose-50 to-rose-100/60 p-4 rounded-2xl border border-rose-200/70 cursor-pointer hover:shadow-md transition group relative">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-rose-600 block mb-1">Pending Udhaar (Credit)</span>
+                            <span class="text-2xl font-black text-rose-700">Rs. {{ credit_amount.value | round(2) }}</span>
+                            <div class="flex justify-between items-center mt-2 text-[10px] font-bold text-rose-600">
+                                <span>{{ credit_count.value }} Accounts Pending</span>
+                                <span class="bg-rose-700 text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-black tracking-wide group-hover:bg-rose-800">Filter</span>
+                            </div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <div class="border border-slate-100 rounded-xl p-3.5 flex justify-between items-center text-xs">
-                            <span class="text-slate-500 font-medium">Distinct Invoices generated:</span>
-                            <span class="font-black text-slate-800 text-sm bg-slate-100 px-2 py-0.5 rounded-md">{{ analytics.sale_count }} Sales</span>
-                        </div>
-                        <div class="border border-slate-100 rounded-xl p-3.5 flex justify-between items-center text-xs">
                             <span class="text-slate-500 font-medium">Last Sold Out Timestamp:</span>
                             <span class="font-bold text-slate-700">{{ analytics.last_sold or 'No transactions logged' }}</span>
+                        </div>
+                        <div id="filterAlertBar" class="hidden border border-amber-200 bg-amber-50 rounded-xl p-3 flex justify-between items-center text-xs text-amber-800">
+                            <span class="font-medium"><i class="fas fa-filter mr-1"></i> Showing only **Pending/Credit** records</span>
+                            <button onclick="toggleCreditFilter()" class="bg-amber-200 hover:bg-amber-300 font-black px-2 py-0.5 rounded text-[10px] uppercase">Clear</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- PERFORMANCE SCOREBAR -->
                 <div class="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                        <span class="text-slate-500 font-medium">Conversion Health status:</span>
-                        {% if analytics.total_units > 20 %}
-                            <span class="font-black text-indigo-600 uppercase">🔥 High Demand Asset</span>
-                        {% elif analytics.total_units > 0 %}
-                            <span class="font-black text-slate-700 uppercase">⚡ Stable Asset Rotation</span>
+                        <span class="text-slate-500 font-medium">Dukan Operations Status:</span>
+                        {% if credit_amount.value > 5000 %}
+                            <span class="font-black text-rose-600 uppercase">⚠️ High Outstanding Balance</span>
                         {% else %}
-                            <span class="font-black text-amber-600 uppercase">💤 Cold / Stagnant Stock</span>
+                            <span class="font-black text-emerald-600 uppercase">✅ Recovery Control Stable</span>
                         {% endif %}
                     </div>
                 </div>
@@ -196,14 +208,14 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
                 <div>
                     <h2 class="font-black text-xl text-slate-900 uppercase tracking-tight">Product Sales Feed</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Real-time ledger of the latest 20 students or customers purchases.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Real-time ledger of purchases. Click the red card above to filter out credit accounts.</p>
                 </div>
                 <div class="text-[10px] uppercase font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border">Audit Ready Log</div>
             </div>
 
             {% if sales %}
             <div class="overflow-x-auto">
-                <table class="min-w-full text-left text-sm text-slate-700">
+                <table id="salesTable" class="min-w-full text-left text-sm text-slate-700">
                     <thead>
                         <tr class="bg-slate-50/70 text-slate-400 uppercase text-[9px] font-black tracking-wider border-b border-slate-200">
                             <th class="p-4">Receipt Identifier</th>
@@ -216,7 +228,7 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for sale in sales %}
-                        <tr class="hover:bg-slate-50/80 transition-colors">
+                        <tr class="sales-row hover:bg-slate-50/80 transition-colors" data-status="{{ sale.payment_status }}">
                             <td class="p-4 font-mono font-bold text-slate-900 text-xs">{{ sale.receipt_number }}</td>
                             <td class="p-4">
                                 <div class="font-bold text-slate-800">{{ sale.student_name or 'Walk-in Customer' }}</div>
@@ -227,7 +239,7 @@
                             <td class="p-4 font-black text-center text-slate-800">{{ sale.qty }}</td>
                             <td class="p-4 font-semibold text-slate-900">Rs. {{ sale.price }}</td>
                             <td class="p-4">
-                                <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider {{ 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' if sale.payment_status == 'Paid' else 'bg-amber-50 text-amber-700 border border-amber-200/50' }}">
+                                <span class="payment-badge px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider {{ 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' if sale.payment_status == 'Paid' else 'bg-rose-50 text-rose-700 border border-rose-200/50' }}">
                                     {{ sale.payment_status }}
                                 </span>
                             </td>
@@ -243,7 +255,6 @@
                     <i class="fas fa-folder-open text-base"></i>
                 </div>
                 <div class="text-xs font-black text-slate-400 uppercase tracking-wider">No Sales Transactions Logged Yet</div>
-                <p class="text-[11px] text-slate-400 mt-1">Jab is item ki transaction checkout hogi, record automatic yahan populate ho jaye ga.</p>
             </div>
             {% endif %}
         </div>
@@ -253,19 +264,15 @@
     <!-- DYNAMIC SMART ADD/EDIT DUKANDAAR MODAL MODULATOR -->
     <div id="productModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
         <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden transform transition-all scale-100">
-            
-            <!-- Modal Header -->
             <div class="bg-slate-50 border-b border-slate-100 p-5 flex justify-between items-center">
                 <div>
                     <h3 id="modalTitle" class="text-sm font-black uppercase tracking-wider text-slate-800">Update / Restock Existing Item Element</h3>
-                    <p class="text-[11px] text-slate-400 mt-0.5">Modify parameters or perform delta inventory adjustments.</p>
                 </div>
                 <button onclick="closeProductModal()" class="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center shadow-sm transition">
                     <i class="fas fa-times text-xs"></i>
                 </button>
             </div>
 
-            <!-- Modal Content Form -->
             <form id="productForm" onsubmit="handleFormSubmission(event)" class="p-6 space-y-4">
                 <input type="hidden" id="formMode" value="edit">
                 <input type="hidden" id="formProdId" value="{{ product.id }}">
@@ -304,7 +311,7 @@
 
                 <div>
                     <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Attributes / Variations</label>
-                    <input type="text" id="prodVariation" value="{{ product.variation or '' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500" placeholder="Size, Color or Sheet Count configurations">
+                    <input type="text" id="prodVariation" value="{{ product.variation or '' }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500" placeholder="Size, Color configurations">
                 </div>
 
                 <div class="grid grid-cols-3 gap-4">
@@ -322,24 +329,41 @@
                     </div>
                 </div>
 
-                <!-- Footer Operations -->
                 <div class="border-t border-slate-100 pt-4 mt-6 flex justify-end gap-2">
-                    <button type="button" onclick="closeProductModal()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold uppercase hover:bg-slate-200 transition">
-                        Cancel
-                    </button>
-                    <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase shadow-md shadow-indigo-100 hover:bg-indigo-700 transition">
-                        Save Changes
-                    </button>
+                    <button type="button" onclick="closeProductModal()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold uppercase hover:bg-slate-200 transition">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase shadow-md hover:bg-indigo-700 transition">Save Changes</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- SCRIPT LOGICAL ENGINE CORE CONTROLLERS -->
+    <!-- INTERACTIVE ENGINE CONTROLLERS -->
     <script>
+        let creditFilterActive = false;
+
+        function toggleCreditFilter() {
+            const rows = document.querySelectorAll('.sales-row');
+            const alertBar = document.getElementById('filterAlertBar');
+            creditFilterActive = !creditFilterActive;
+
+            if (creditFilterActive) {
+                alertBar.classList.remove('hidden');
+                rows.forEach(row => {
+                    const status = row.getAttribute('data-status').trim().toLowerCase();
+                    if (status === 'paid') {
+                        row.classList.add('hidden');
+                    } else {
+                        row.classList.remove('hidden');
+                    }
+                });
+            } else {
+                alertBar.classList.add('hidden');
+                rows.forEach(row => row.classList.remove('hidden'));
+            }
+        }
+
         function openProductModal(mode) {
             document.getElementById("formMode").value = mode;
-            document.getElementById("prodCat").removeAttribute("disabled");
             document.getElementById("productModal").classList.remove("hidden");
             adaptFormToCategory();
         }
@@ -359,22 +383,16 @@
             } else if (cat === "Notebook") {
                 classWrapper.classList.remove("hidden");
                 subWrapper.classList.add("hidden");
-                document.getElementById("prodSubject").value = "";
             } else {
                 classWrapper.classList.add("hidden");
                 subWrapper.classList.add("hidden");
-                document.getElementById("prodClass").value = "";
-                document.getElementById("prodSubject").value = "";
             }
         }
 
         async function handleFormSubmission(e) {
             e.preventDefault();
-
-            const mode = document.getElementById("formMode").value;
             const formData = new FormData();
-            
-            formData.append("mode", mode);
+            formData.append("mode", document.getElementById("formMode").value);
             formData.append("prod_id", document.getElementById("formProdId").value);
             formData.append("cat", document.getElementById("prodCat").value);
             formData.append("name", document.getElementById("prodName").value);
@@ -388,21 +406,16 @@
             formData.append("force_new", "false");
 
             try {
-                const response = await fetch('/api/products/smart-add', {
-                    method: 'POST',
-                    body: formData
-                });
+                const response = await fetch('/api/products/smart-add', { method: 'POST', body: formData });
                 const result = await response.json();
-                
                 if (result.status === "success") {
                     closeProductModal();
                     window.location.reload();
                 } else {
-                    alert("Error saving data asset elements: " + result.message);
+                    alert("Error: " + result.message);
                 }
             } catch (error) {
-                console.error("Form handling error runtime:", error);
-                alert("Network connectivity mapping drop anomaly.");
+                alert("Network operational issue encountered.");
             }
         }
     </script>
