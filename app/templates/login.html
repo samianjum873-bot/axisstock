@@ -4,24 +4,50 @@
     <meta charset="UTF-8">
     <title>Login - EduStock Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-indigo-900 h-screen flex items-center justify-center">
-    <div class="bg-white p-10 rounded-3xl shadow-2xl w-96">
-        <h1 class="text-3xl font-black text-center text-indigo-900 mb-2">EDUSTOCK</h1>
-        <p class="text-center text-gray-500 mb-8 font-bold">POS Login System</p>
+<body class="bg-indigo-900 h-screen flex items-center justify-center backdrop-blur-sm bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900">
+    
+    <div class="bg-white p-10 rounded-3xl shadow-2xl w-96 border-4 border-indigo-950">
+        <h1 class="text-3xl font-black text-center text-indigo-950 mb-1 tracking-tight italic">AXIS <span class="text-indigo-600 font-normal">EDUSTOCK</span></h1>
+        <p class="text-center text-gray-400 mb-6 font-black text-[10px] uppercase tracking-widest">POS Security Access Terminal</p>
+        
+        <!-- Professional Error Alert Banner -->
+        <div id="errorAlert" class="hidden bg-rose-50 border-2 border-rose-500 p-3 rounded-xl mb-4 flex items-center space-x-2 text-rose-700 animate-pulse">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span class="text-xs font-black uppercase">Invalid Terminal Credentials!</span>
+        </div>
         
         <form action="/login" method="post" class="space-y-4">
             <div>
-                <label class="block text-xs font-bold text-gray-400 uppercase">Username</label>
-                <input type="text" name="username" class="w-full border-2 p-3 rounded-xl focus:border-indigo-500 outline-none" required>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Operator Username</label>
+                <div class="relative">
+                    <i class="fas fa-user absolute left-4 top-4 text-gray-400"></i>
+                    <input type="text" name="username" placeholder="Enter username..." class="w-full border-2 pl-10 pr-4 py-3 rounded-xl focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none font-bold text-sm bg-slate-50 transition-all" required>
+                </div>
             </div>
             <div>
-                <label class="block text-xs font-bold text-gray-400 uppercase">Password</label>
-                <input type="password" name="password" class="w-full border-2 p-3 rounded-xl focus:border-indigo-500 outline-none" required>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Access Password</label>
+                <div class="relative">
+                    <i class="fas fa-lock absolute left-4 top-4 text-gray-400"></i>
+                    <input type="password" name="password" placeholder="••••••••" class="w-full border-2 pl-10 pr-4 py-3 rounded-xl focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none font-bold text-sm bg-slate-50 transition-all" required>
+                </div>
             </div>
-            <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black hover:bg-indigo-700 transition">ENTRANCE</button>
+            <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl uppercase tracking-wider text-sm flex items-center justify-center gap-2">
+                <i class="fas fa-door-open"></i> Authenticate & Enter
+            </button>
         </form>
-        <p id="msg" class="text-red-500 text-center mt-4 text-sm font-bold"></p>
     </div>
+
+    <script>
+        // Professional URL Parameter Scanner for Errors
+        document.addEventListener("DOMContentLoaded", function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('error') === '1') {
+                const alertBox = document.getElementById('errorAlert');
+                alertBox.classList.remove('hidden');
+            }
+        });
+    </script>
 </body>
 </html>

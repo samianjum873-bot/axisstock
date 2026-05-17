@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Existing sidebar active styles if any */
         .sidebar-link.active { background-color: rgb(30 27 75); }
     </style>
 </head>
@@ -32,6 +31,13 @@
                 <i class="fas fa-users w-8"></i> <span class="font-bold text-xs">CUSTOMER DATABASE</span>
             </a>
         </nav>
+        
+        <!-- Logout Button Session Location -->
+        <div class="p-4 border-t border-indigo-900">
+            <a href="/logout" class="w-full flex items-center p-4 rounded-xl text-rose-400 hover:bg-rose-950/30 transition font-bold text-xs uppercase tracking-wider">
+                <i class="fas fa-sign-out-alt w-8 text-rose-500"></i> Logout Session
+            </a>
+        </div>
     </aside>
 
     <!-- Main Core App Wrapper -->
@@ -41,7 +47,6 @@
         <header class="h-16 bg-white border-b flex items-center justify-between px-8 shadow-sm">
             <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight" id="headerTitle">{% block header_title %}Counter Billing Terminal{% endblock %}</h2>
             <div class="flex items-center space-x-4">
-                <!-- Hreader action elements inject here dynmically -->
                 {% block header_actions %}
                     {% if active_page == 'pos' %}
                     <button onclick="toggleModal(true)" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg hover:bg-indigo-700 transition tracking-widest uppercase">
@@ -54,7 +59,6 @@
 
         <!-- Main Workspace Router Slot -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
-            <!-- Analytics Dashboard - Only show on POS page -->
             {% if active_page == 'pos' %}
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-indigo-500">
@@ -80,7 +84,7 @@
         </div>
     </div>
 
-    <!-- POS Specific Global Add Modal (Only renders and works on POS page context) -->
+    <!-- POS Specific Global Add Modal -->
     {% if active_page == 'pos' %}
     <div id="addModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-2xl w-[90%] max-w-2xl overflow-hidden border-4 border-indigo-950 mx-auto mt-20">
@@ -108,10 +112,7 @@
         let inventory = []; let cart = []; let currentWizardStep = 1;
 
         async function refreshData() {
-            // If we are on the new inventory page, DO NOT let this old script run or overwrite anything
-            if (window.location.pathname === '/inventory') {
-                return; 
-            }
+            if (window.location.pathname === '/inventory') return; 
 
             const res = await fetch('/api/inventory');
             inventory = await res.json();
@@ -136,7 +137,7 @@
             else modal.classList.add('hidden');
         }
 
-        if (window.location.pathname Atlantic !== '/inventory') {
+        if (window.location.pathname !== '/inventory') {
             document.addEventListener("DOMContentLoaded", refreshData);
         }
     </script>
