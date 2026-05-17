@@ -210,7 +210,7 @@ async def smart_add(
     conn = get_db(); cursor = conn.cursor()
     is_force_new = True if force_new.lower() == "true" else False
 
-    if mode == 'update' and prod_id and not is_force_new:
+    if mode in ['update', 'edit'] and prod_id and not is_force_new:
         cursor.execute("UPDATE products SET stock = stock + ?, purchase_price = ?, selling_price = ? WHERE id = ?", 
                        (stock, p_price, s_price, prod_id))
     else:
