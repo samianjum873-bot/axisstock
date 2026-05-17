@@ -5,80 +5,18 @@ from fastapi.templating import Jinja2Templates
 import sqlite3, random, string, json
 from datetime import datetime
 import os
+from app.database.models import init_db, DB_PATH
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
-DB_PATH = "app/database/school_store.db"
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database schema using the exact relational structural specifications"""
     if not os.path.exists("app/database"):
         os.makedirs("app/database")
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sku TEXT UNIQUE NOT NULL,
-            barcode TEXT UNIQUE,
-            name TEXT NOT NULL,
-            category TEXT NOT NULL,
-            student_class TEXT,
-            subject TEXT,
-            purchase_price REAL NOT NULL,
-            selling_price REAL NOT NULL,
-            stock INTEGER NOT NULL DEFAULT 0,
-            tag TEXT,
-            variation TEXT
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sales (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            receipt_number TEXT NOT NULL UNIQUE,
-            student_name TEXT NOT NULL,
-            father_name TEXT NOT NULL,
-            cnic TEXT,
-            student_class TEXT NOT NULL,
-            phone_no TEXT NOT NULL,
-            address TEXT,
-            sale_type TEXT NOT NULL,
-            total_amount REAL NOT NULL,
-            cash_paid REAL DEFAULT 0.0,
-            profit REAL DEFAULT 0.0,
-            payment_status TEXT DEFAULT 'Paid',
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sale_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sale_id INTEGER,
-            product_id INTEGER,
-            sku TEXT NOT NULL,
-            qty INTEGER NOT NULL,
-            price REAL NOT NULL,
-            FOREIGN KEY(sale_id) REFERENCES sales(id),
-            FOREIGN KEY(product_id) REFERENCES products(id)
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
+    # Initialize the synchronized dynamic relational schemas
+    init_db()
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -89,16 +27,15 @@ def is_logged_in(request: Request):
     return True if request.cookies.get("active_user") else False
 
 def generate_professional_sku(category: str, name: str, s_class: str = "", subject: str = ""):
-    """Generates automated structural barcode SKU tags for precise tracking"""
+    """Generates a professional clean tracking barcode identifier string"""
     clean_name = "".join([c for c in name if c.isalnum()]).upper()[:5]
     clean_sub = "".join([c for c in subject if c.isalnum()]).upper()[:4] if subject else "GEN"
     clean_class = "".join([c for c in s_class if c.isalnum()]).upper() if s_class else "ALL"
     rand_suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
     
-    cat_lower = category.strip().lower()
-    if "book" in cat_lower and "notebook" not in cat_lower:
+    if category.strip().lower() == "books":
         return f"BK-{clean_class}-{clean_sub}-{rand_suffix}"
-    elif "notebook" in cat_lower:
+    elif category.strip().lower() == "notebooks":
         return f"NB-{clean_name}-{clean_class}-{rand_suffix}"
     else:
         return f"ST-{clean_name}-{rand_suffix}"
@@ -125,8 +62,10 @@ async def login_page(request: Request):
 @app.post("/login")
 async def do_login(response: Response, username: str = Form(...), password: str = Form(...)):
     conn = get_db()
+    # Check user mapping logic safely
     user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
     if not user and username == "admin" and password == "admin":
+        # Create a default admin seed for Sami if table empty
         cursor = conn.cursor()
         cursor.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('admin','admin')")
         conn.commit()
@@ -148,7 +87,6 @@ async def logout():
 async def sales_page(request: Request):
     if not is_logged_in(request): return RedirectResponse(url="/login", status_code=303)
     conn = get_db()
-    
     all_sales = conn.execute("SELECT * FROM sales ORDER BY id DESC").fetchall()
     
     items_query = """
@@ -175,15 +113,13 @@ async def sales_page(request: Request):
 # --- SMART RELATIONAL INVENTORY APIs ---
 
 @app.get("/api/products/check-existing")
-async def check_existing(sku: str = None, barcode: str = None, name: str = None, s_class: str = None):
+async def check_existing(sku: str = None, name: str = None, barcode: str = None):
     conn = get_db()
     result = None
     if sku:
         result = conn.execute("SELECT * FROM products WHERE sku = ?", (sku,)).fetchone()
     elif barcode:
         result = conn.execute("SELECT * FROM products WHERE barcode = ?", (barcode,)).fetchone()
-    elif name and s_class:
-        result = conn.execute("SELECT * FROM products WHERE name = ? AND student_class = ?", (name, s_class)).fetchone()
     elif name:
         result = conn.execute("SELECT * FROM products WHERE name = ?", (name,)).fetchone()
     conn.close()
@@ -195,7 +131,7 @@ async def smart_add(
     mode: str = Form(...), 
     prod_id: int = Form(None),
     name: str = Form(...),
-    cat: str = Form(...),
+    cat: str = Form(...), # Stationary, Books, Notebooks
     s_class: str = Form(""),
     sub: str = Form(""),
     tag: str = Form(""),
@@ -214,6 +150,7 @@ async def smart_add(
         cursor.execute("UPDATE products SET stock = stock + ?, purchase_price = ?, selling_price = ? WHERE id = ?", 
                        (stock, p_price, s_price, prod_id))
     else:
+        # Generate SKU Identity context natively
         assigned_sku = generate_professional_sku(cat, name, s_class, sub)
         assigned_barcode = barcode.strip() if barcode.strip() else "BAR-" + "".join(random.choices(string.digits, k=10))
         
@@ -230,17 +167,6 @@ async def list_inv(request: Request):
     if not is_logged_in(request): raise HTTPException(status_code=401)
     conn = get_db()
     data = conn.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
-    conn.close()
-    return data
-
-@app.get("/api/sales-recent")
-async def recent_sales(request: Request):
-    if not is_logged_in(request): raise HTTPException(status_code=401)
-    conn = get_db()
-    data = conn.execute("""
-        SELECT id, receipt_number, total_amount, payment_status, timestamp
-        FROM sales ORDER BY id DESC LIMIT 5
-    """).fetchall()
     conn.close()
     return data
 
@@ -333,8 +259,6 @@ async def get_receipt(request: Request, sale_id: int):
         "payment_status": sale['payment_status'],
         "cash_paid": sale['cash_paid'] if sale['cash_paid'] else 0
     }
-    if sale['payment_status'] in ['Pending', 'CreditSplit']:
-        receipt_data["outstanding_balance"] = sale['total_amount'] - (receipt_data["cash_paid"] or 0)
     return receipt_data
 
 @app.get("/api/v2/analytics")

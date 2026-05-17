@@ -31,4 +31,110 @@
             <tbody id="inventoryTableBody" class="text-sm font-bold"></tbody>
         </table>
     </div>
+
+    <script>
+        let fullInventory = [];
+
+        async def loadInventory() {
+            try {
+                const response = await fetch('/api/inventory');
+                fullInventory = await response.json();
+                renderTable(fullInventory);
+            } catch (error) {
+                console.error("Error fetching inventory elements:", error);
+            }
+        }
+
+        function toggleSubFilters() {
+            const cat = document.getElementById("filterCat").value;
+            const classInput = document.getElementById("filterClass");
+            const subInput = document.getElementById("filterSubject");
+
+            if (cat === "Book") {
+                classInput.classList.remove("hidden");
+                subInput.classList.remove("hidden");
+            } else if (cat === "Notebook") {
+                classInput.classList.remove("hidden");
+                subInput.classList.add("hidden");
+                subInput.value = "";
+            } else {
+                classInput.classList.add("hidden");
+                subInput.classList.add("hidden");
+                classInput.value = "";
+                subInput.value = "";
+            }
+        }
+
+        function masterFilter() {
+            const catToken = document.getElementById("filterCat").value.toLowerCase();
+            const classToken = document.getElementById("filterClass").value.toLowerCase();
+            const subToken = document.getElementById("filterSubject").value.toLowerCase();
+
+            const filtered = fullInventory.filter(item => {
+                const matchesCat = !catToken || item.category.toLowerCase().includes(catToken);
+                const matchesClass = !classToken || (item.student_class && item.student_class.toLowerCase().includes(classToken));
+                const matchesSub = !subToken || (item.subject && item.subject.toLowerCase().includes(subToken));
+                return matchesCat && matchesClass && matchesSub;
+            });
+
+            renderTable(filtered);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById("inventoryTableBody");
+            tbody.innerHTML = "";
+
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400">No items matched in global stock list</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement("tr");
+                tr.className = "border-b hover:bg-slate-50 text-slate-700 transition";
+                
+                let contextMetaData = "";
+                if (item.student_class || item.subject) {
+                    contextMetaData = `<span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded ml-2">
+                        ${item.student_class || ''} ${item.subject ? '| ' + item.subject : ''}
+                    </span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-bold text-slate-900">${item.name}</div>
+                        <div class="text-[10px] font-mono text-slate-400 flex items-center space-x-2 mt-0.5">
+                            <span>SKU: ${item.sku}</span>
+                            <span>•</span>
+                            <span>Barcode: ${item.barcode || 'N/A'}</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 uppercase font-black text-[9px]">
+                            ${item.category}
+                        </span>
+                        ${contextMetaData}
+                    </td>
+                    <td class="p-4">
+                        <div class="text-xs text-slate-400 font-medium">Cost: Rs ${item.purchase_price}</div>
+                        <div class="text-slate-800 font-bold">Sale: Rs ${item.selling_price}</div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="px-2 py-1 rounded text-xs ${item.stock < 10 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}">
+                            ${item.stock} units
+                        </span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <a href="/product/${item.id}" class="text-xs text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition">
+                            View Ledger →
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Bootstrapping
+        document.addEventListener("DOMContentLoaded", loadInventory);
+    </script>
 {% endblock %}

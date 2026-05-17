@@ -11,42 +11,34 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Inventory Table
+    # 1. Users Table
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS inventory (
+    CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_name TEXT NOT NULL,
-        item_type TEXT NOT NULL,
-        student_class TEXT NOT NULL,
-        price REAL NOT NULL,
-        total_stock INTEGER NOT NULL,
-        remaining_stock INTEGER NOT NULL
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
     );
     """)
     
-    # 2. Bundles Table
+    # 2. Products Table (With Professional Identity Blueprint)
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS bundles (
+    CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        bundle_name TEXT NOT NULL,
-        student_class TEXT NOT NULL UNIQUE,
-        total_price REAL NOT NULL
+        sku TEXT UNIQUE NOT NULL,
+        barcode TEXT UNIQUE,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL, -- Stationary, Books, Notebooks
+        student_class TEXT,
+        subject TEXT,
+        purchase_price REAL NOT NULL,
+        selling_price REAL NOT NULL,
+        stock INTEGER NOT NULL DEFAULT 0,
+        tag TEXT,
+        variation TEXT
     );
     """)
     
-    # 3. Bundle Items Mapping
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS bundle_items (
-        bundle_id INTEGER,
-        item_id INTEGER,
-        quantity INTEGER DEFAULT 1,
-        FOREIGN KEY(bundle_id) REFERENCES bundles(id),
-        FOREIGN KEY(item_id) REFERENCES inventory(id),
-        PRIMARY KEY (bundle_id, item_id)
-    );
-    """)
-    
-    # 4. Sales/Transactions Table (Fully Updated for Analytics & POS Billing v2)
+    # 3. Sales / Invoice Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,28 +51,30 @@ def init_db():
         address TEXT,
         sale_type TEXT NOT NULL,
         total_amount REAL NOT NULL,
+        cash_paid REAL DEFAULT 0.0,
         profit REAL DEFAULT 0.0,
         payment_status TEXT DEFAULT 'Paid',
-        cash_paid REAL DEFAULT 0.0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     """)
     
-    # 5. Sale Details
+    # 4. Sale Items (Relational Mapping using IDs & SKUs)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS sale_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sale_id INTEGER,
-        item_name TEXT NOT NULL,
-        quantity INTEGER NOT NULL,
-        price_per_unit REAL NOT NULL,
-        FOREIGN KEY(sale_id) REFERENCES sales(id)
+        product_id INTEGER,
+        sku TEXT NOT NULL,
+        qty INTEGER NOT NULL,
+        price REAL NOT NULL,
+        FOREIGN KEY(sale_id) REFERENCES sales(id),
+        FOREIGN KEY(product_id) REFERENCES products(id)
     );
     """)
     
     conn.commit()
     conn.close()
-    print("[SUCCESS] Database tables initialized successfully with professional POS & Analytics columns.")
+    print("[SUCCESS] Axis Database Engine initialized with professional SKU Identity layers.")
 
 if __name__ == "__main__":
     init_db()
