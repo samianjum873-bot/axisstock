@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Super Admin Login</title>
+    <script src="/static/js/tailwindcss.js"></script>
+</head>
+<body class="bg-gray-900 flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+        <h1 class="text-2xl font-bold mb-4">Super Admin Login</h1>
+        <form method="post" action="/super-admin/login">
+            <input type="text" name="username" placeholder="Username" class="w-full border p-2 mb-2 rounded">
+            <input type="password" name="password" placeholder="Password" class="w-full border p-2 mb-4 rounded">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full">Login</button>
+        </form>
+        {% if request.query_params.get('error') %}
+            <p class="text-red-500 mt-2">Invalid credentials</p>
+        {% endif %}
+    </div>
+</body>
+</html>

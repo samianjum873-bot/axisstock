@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduStock PRO | {% block title %}Dashboard{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Axis Stock| {% block title %}Dashboard{% endblock %}</title>
+    <script src="/static/js/tailwindcss.js"></script>
+    <link rel="stylesheet" href="/static/css/font-awesome.min.css">
     <style>
         .sidebar-link.active { background-color: rgb(30 27 75); }
     </style>
@@ -15,11 +15,11 @@
     <!-- Sidebar Layout -->
     <aside class="w-64 bg-indigo-950 text-white flex flex-col shadow-2xl z-50">
         <div class="p-6 border-b border-indigo-900">
-            <h1 class="text-xl font-black italic uppercase text-yellow-400">EduStock <span class="text-white">PRO</span></h1>
+            <h1 class="text-xl font-black italic uppercase text-yellow-400">Axis Stock <span class="text-white"></span></h1>
         </div>
         <nav class="flex-1 mt-6 px-4 space-y-2">
             <a href="/pos" id="link-pos" class="sidebar-link {% if active_page == 'pos' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
-                <i class="fas fa-calculator w-8"></i> <span class="font-bold text-xs">COUNTER BILLING Wizard</span>
+                <i class="fas fa-calculator w-8"></i> <span class="font-bold text-xs">COUNTER BILLING</span>
             </a>
             <a href="/inventory" id="link-inventory" class="sidebar-link {% if active_page == 'inventory' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-box-open w-8"></i> <span class="font-bold text-xs">STOCK MANAGER</span>
@@ -50,13 +50,7 @@
         <header class="h-16 bg-white border-b flex items-center justify-between px-8 shadow-sm">
             <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight" id="headerTitle">{% block header_title %}Counter Billing Terminal{% endblock %}</h2>
             <div class="flex items-center space-x-4">
-                {% block header_actions %}
-                    {% if active_page == 'pos' %}
-                    <button onclick="toggleModal(true)" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg hover:bg-indigo-700 transition tracking-widest uppercase">
-                        + Add New Stock Item
-                    </button>
-                    {% endif %}
-                {% endblock %}
+                
             </div>
         </header>
 

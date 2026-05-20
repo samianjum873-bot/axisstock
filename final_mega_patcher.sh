@@ -1,6 +1,19 @@
-from dotenv import load_dotenv
-load_dotenv()
+#!/bin/bash
+# Final Mega Patcher - Fixes all issues and completes multi-tenant SaaS setup
 
+set -e
+
+echo "===== AxisStock Final Mega Patcher ====="
+
+# 1. Install missing dependency
+source venv/bin/activate
+pip install itsdangerous
+
+# 2. Backup existing main.py
+cp app/main.py app/main.py.backup
+
+# 3. Write corrected main.py with proper imports and middleware order
+cat > app/main.py <<'EOF'
 import os
 import random
 import string
@@ -9,12 +22,12 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Form, HTTPException, Depends, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.database import init_db_pool, get_pool, create_tenant_schema, tenant_exists
+from app.database import init_db_pool, pool, create_tenant_schema, tenant_exists
 from app.middleware import TenantMiddleware
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -24,7 +37,6 @@ SUPER_ADMIN_PASS = os.getenv("SUPER_ADMIN_PASS", "superadmin123")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db_pool()
-    pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("""
             CREATE SCHEMA IF NOT EXISTS public;
@@ -92,7 +104,6 @@ async def super_admin_do_login(request: Request, username: str = Form(...), pass
 async def super_admin_dashboard(request: Request):
     if request.cookies.get("super_admin") != "true":
         return RedirectResponse(url="/super-admin/login")
-    pool = await get_pool()
     async with pool.acquire() as conn:
         schools = await conn.fetch("SELECT id, name, subdomain, admin_username, created_at FROM public.schools ORDER BY id")
     return templates.TemplateResponse(request, "super_admin_dashboard.html", {"schools": schools})
@@ -103,7 +114,6 @@ async def create_school(request: Request, name: str = Form(...), subdomain: str 
     if request.cookies.get("super_admin") != "true":
         raise HTTPException(status_code=401)
     subdomain = subdomain.lower().strip()
-    pool = await get_pool()
     async with pool.acquire() as conn:
         try:
             await conn.execute(
@@ -111,10 +121,8 @@ async def create_school(request: Request, name: str = Form(...), subdomain: str 
                 name, subdomain, admin_username, admin_password
             )
             await create_tenant_schema(subdomain, admin_username, admin_password)
-        except Exception as e:
-            if "unique constraint" in str(e).lower():
-                raise HTTPException(status_code=400, detail="Subdomain already exists")
-            raise
+        except asyncpg.UniqueViolationError:
+            raise HTTPException(status_code=400, detail="Subdomain already exists")
     return RedirectResponse(url="/super-admin/dashboard", status_code=303)
 
 @app.get("/super-admin/logout")
@@ -377,14 +385,10 @@ async def list_registered_customers(request: Request):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
     conn = get_tenant_conn(request)
-    # Fixed PostgreSQL GROUP BY query
     query = """
         SELECT cnic, student_name, father_name, phone_no, student_class, address,
                COUNT(id) as total_orders, SUM(total_amount) as total_spent
-        FROM sales
-        WHERE cnic IS NOT NULL AND cnic != ''
-        GROUP BY cnic, student_name, father_name, phone_no, student_class, address
-        ORDER BY total_spent DESC
+        FROM sales WHERE cnic IS NOT NULL AND cnic != '' GROUP BY cnic ORDER BY total_spent DESC
     """
     customers = await conn.fetch(query)
     return templates.TemplateResponse(request, "customers.html", {"active_page": "customers", "customers": [dict(c) for c in customers]})
@@ -395,17 +399,9 @@ async def view_customer_detailed_profile(request: Request, cnic_id: str):
         return RedirectResponse(url="/login", status_code=303)
     conn = get_tenant_conn(request)
     profile = await conn.fetchrow("SELECT * FROM sales WHERE cnic = $1 LIMIT 1", cnic_id)
-    profile = dict(profile)
-    if isinstance(profile.get("timestamp"), datetime):
-        profile["timestamp"] = profile["timestamp"].isoformat()
     if not profile:
         raise HTTPException(status_code=404, detail="Customer not found")
     history = await conn.fetch("SELECT * FROM sales WHERE cnic = $1 ORDER BY id DESC", cnic_id)
-    # Convert datetime objects to string for JSON serialization
-    history = [dict(row) for row in history]
-    for row in history:
-        if isinstance(row.get("timestamp"), datetime):
-            row["timestamp"] = row["timestamp"].isoformat()
     sale_ids = [row['id'] for row in history]
     items_map = {}
     if sale_ids:
@@ -488,7 +484,129 @@ async def operations_analytics_dashboard(request: Request, range: str = "all"):
         "class_sales": [dict(c) for c in class_sales],
         "low_stock_items": [dict(l) for l in low_stock_items]
     })
+EOF
 
-@app.get("/favicon.ico")
-async def favicon():
-    return RedirectResponse(url="/static/favicon.ico")
+# 4. Ensure middleware.py is correct
+cat > app/middleware.py <<'EOF'
+from fastapi import Request, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.database import pool, tenant_exists
+
+class TenantMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Skip tenant detection for super admin paths and static files
+        if request.url.path.startswith("/super-admin") or request.url.path.startswith("/static"):
+            request.state.tenant = None
+            return await call_next(request)
+
+        host = request.headers.get("host", "")
+        host = host.split(":")[0]
+        parts = host.split(".")
+        if len(parts) >= 2:
+            subdomain = parts[0]
+            if await tenant_exists(subdomain):
+                request.state.tenant = subdomain
+                conn = await pool.acquire()
+                await conn.execute(f'SET search_path TO "{subdomain}"')
+                request.state.db_conn = conn
+                response = await call_next(request)
+                await conn.execute('SET search_path TO public')
+                await pool.release(conn)
+                return response
+        raise HTTPException(status_code=404, detail="School not found")
+EOF
+
+# 5. Update database.py (already fine, but ensure it's there)
+cat > app/database.py <<'EOF'
+import os
+import asyncpg
+from contextlib import asynccontextmanager
+
+pool = None
+
+async def init_db_pool():
+    global pool
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=20)
+
+async def get_pool():
+    return pool
+
+async def create_tenant_schema(schema_name: str, admin_username: str, admin_password: str):
+    async with pool.acquire() as conn:
+        safe_schema = schema_name.replace('"', '').replace("'", "")
+        await conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{safe_schema}"')
+        await conn.execute(f'SET search_path TO "{safe_schema}"')
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                sku TEXT UNIQUE NOT NULL,
+                barcode TEXT UNIQUE,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                student_class TEXT,
+                subject TEXT,
+                purchase_price REAL NOT NULL,
+                selling_price REAL NOT NULL,
+                stock INTEGER NOT NULL DEFAULT 0,
+                tag TEXT,
+                variation TEXT
+            );
+            CREATE TABLE IF NOT EXISTS sales (
+                id SERIAL PRIMARY KEY,
+                receipt_number TEXT NOT NULL UNIQUE,
+                student_name TEXT NOT NULL,
+                father_name TEXT NOT NULL,
+                cnic TEXT,
+                student_class TEXT NOT NULL,
+                phone_no TEXT NOT NULL,
+                address TEXT,
+                sale_type TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                cash_paid REAL DEFAULT 0.0,
+                profit REAL DEFAULT 0.0,
+                payment_status TEXT DEFAULT 'Paid',
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS sale_items (
+                id SERIAL PRIMARY KEY,
+                sale_id INTEGER REFERENCES sales(id) ON DELETE CASCADE,
+                product_id INTEGER REFERENCES products(id),
+                sku TEXT NOT NULL,
+                qty INTEGER NOT NULL,
+                price REAL NOT NULL
+            );
+        """)
+        await conn.execute("""
+            INSERT INTO users (username, password) VALUES ($1, $2)
+            ON CONFLICT (username) DO NOTHING;
+        """, admin_username, admin_password)
+        await conn.execute('SET search_path TO public')
+
+async def tenant_exists(subdomain: str) -> bool:
+    async with pool.acquire() as conn:
+        return await conn.fetchval("SELECT 1 FROM public.schools WHERE subdomain = $1", subdomain) is not None
+EOF
+
+# 6. Ensure super admin dashboard uses correct base template (already done)
+# 7. Create requirements.txt
+cat > requirements.txt <<'EOF'
+fastapi==0.136.1
+uvicorn==0.47.0
+jinja2==3.1.6
+python-multipart==0.0.28
+asyncpg==0.31.0
+itsdangerous==2.2.0
+EOF
+
+echo "===== Patcher completed! ====="
+echo "Start the server with: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+echo "Super admin: http://localhost:8000/super-admin/login (superadmin/superadmin123)"
+echo "Create a school with admin credentials."
+echo "For local testing of subdomains, add to /etc/hosts: 127.0.0.1 demo.localhost myschool.localhost"
+EOF

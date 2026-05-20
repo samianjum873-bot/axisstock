@@ -1,30 +1,72 @@
-from dotenv import load_dotenv
-load_dotenv()
+#!/bin/bash
+# Multi-tenant PostgreSQL patcher for AxisStock
+# Run this script from the project root folder (~/axisstock)
 
+set -e
+
+echo "===== AxisStock Multi-Tenant PostgreSQL Patcher ====="
+
+# --- 1. Install dependencies ---
+echo "Installing system dependencies..."
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib python3-pip
+
+echo "Installing Python packages..."
+pip3 install asyncpg fastapi uvicorn jinja2 python-multipart
+
+# --- 2. Setup PostgreSQL ---
+echo "Setting up PostgreSQL database and user..."
+sudo -u postgres psql <<EOF
+CREATE USER axisstock_user WITH PASSWORD 'axisstock_pass';
+CREATE DATABASE axisstock_db OWNER axisstock_user;
+GRANT ALL PRIVILEGES ON DATABASE axisstock_db TO axisstock_user;
+EOF
+
+# Create a .env file for database URL
+cat > .env <<EOF
+DATABASE_URL=postgresql://axisstock_user:axisstock_pass@localhost/axisstock_db
+SUPER_ADMIN_USER=superadmin
+SUPER_ADMIN_PASS=superadmin123
+EOF
+
+echo "Environment file created."
+
+# --- 3. Backup original main.py ---
+if [ -f app/main.py ]; then
+    cp app/main.py app/main.py.sqlite.bak
+    echo "Backed up original main.py to app/main.py.sqlite.bak"
+fi
+
+# --- 4. Write new main.py with multi-tenant support ---
+cat > app/main_new.py <<'EOF'
 import os
+import asyncpg
+import asyncio
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Form, HTTPException, Depends, status
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import random
 import string
 import json
 from datetime import datetime
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Form, HTTPException, Depends, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
-
-from app.database import init_db_pool, get_pool, create_tenant_schema, tenant_exists
-from app.middleware import TenantMiddleware
-
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://axisstock_user:axisstock_pass@localhost/axisstock_db")
 SUPER_ADMIN_USER = os.getenv("SUPER_ADMIN_USER", "superadmin")
 SUPER_ADMIN_PASS = os.getenv("SUPER_ADMIN_PASS", "superadmin123")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_db_pool()
-    pool = await get_pool()
+# Global connection pool
+pool = None
+
+async def get_db():
+    async with pool.acquire() as conn:
+        yield conn
+
+async def init_pool():
+    global pool
+    pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=10)
+    # Create public schema for super admin if not exists
     async with pool.acquire() as conn:
         await conn.execute("""
             CREATE SCHEMA IF NOT EXISTS public;
@@ -32,40 +74,125 @@ async def lifespan(app: FastAPI):
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 subdomain TEXT UNIQUE NOT NULL,
-                admin_username TEXT NOT NULL,
-                admin_password TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW()
             );
+            INSERT INTO public.schools (name, subdomain) 
+            VALUES ('Demo School', 'demo') 
+            ON CONFLICT (subdomain) DO NOTHING;
         """)
-        demo_exists = await conn.fetchval("SELECT 1 FROM public.schools WHERE subdomain = 'demo'")
-        if not demo_exists:
-            await conn.execute(
-                "INSERT INTO public.schools (name, subdomain, admin_username, admin_password) VALUES ($1, $2, $3, $4)",
-                "Demo School", "demo", "admin", "admin"
-            )
-            await create_tenant_schema("demo", "admin", "admin")
-    yield
-    await pool.close()
+        # Create default schema for demo tenant
+        await create_tenant_schema('demo')
 
-app = FastAPI(lifespan=lifespan)
-app.add_middleware(TenantMiddleware)
-app.add_middleware(SessionMiddleware, secret_key="change-this-secret-key-in-production")
+async def create_tenant_schema(schema_name):
+    async with pool.acquire() as conn:
+        # Escape schema name to prevent injection
+        safe_schema = schema_name.replace('"', '').replace("'", "")
+        await conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{safe_schema}"')
+        await conn.execute(f'SET search_path TO "{safe_schema}"')
+        # Create tables
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                sku TEXT UNIQUE NOT NULL,
+                barcode TEXT UNIQUE,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                student_class TEXT,
+                subject TEXT,
+                purchase_price REAL NOT NULL,
+                selling_price REAL NOT NULL,
+                stock INTEGER NOT NULL DEFAULT 0,
+                tag TEXT,
+                variation TEXT
+            );
+            CREATE TABLE IF NOT EXISTS sales (
+                id SERIAL PRIMARY KEY,
+                receipt_number TEXT NOT NULL UNIQUE,
+                student_name TEXT NOT NULL,
+                father_name TEXT NOT NULL,
+                cnic TEXT,
+                student_class TEXT NOT NULL,
+                phone_no TEXT NOT NULL,
+                address TEXT,
+                sale_type TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                cash_paid REAL DEFAULT 0.0,
+                profit REAL DEFAULT 0.0,
+                payment_status TEXT DEFAULT 'Paid',
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS sale_items (
+                id SERIAL PRIMARY KEY,
+                sale_id INTEGER REFERENCES sales(id) ON DELETE CASCADE,
+                product_id INTEGER REFERENCES products(id),
+                sku TEXT NOT NULL,
+                qty INTEGER NOT NULL,
+                price REAL NOT NULL
+            );
+        """)
+        # Insert default admin user for tenant
+        await conn.execute("""
+            INSERT INTO users (username, password) VALUES ('admin', 'admin')
+            ON CONFLICT (username) DO NOTHING;
+        """)
+    # Reset search_path
+    async with pool.acquire() as conn:
+        await conn.execute('SET search_path TO public')
 
+async def get_tenant_schema(request: Request) -> str:
+    host = request.headers.get("host", "")
+    # Remove port if any
+    host = host.split(":")[0]
+    # Check for subdomain
+    parts = host.split(".")
+    if len(parts) >= 2:
+        subdomain = parts[0]
+        # Verify subdomain exists
+        async with pool.acquire() as conn:
+            exists = await conn.fetchval("SELECT 1 FROM public.schools WHERE subdomain = $1", subdomain)
+            if exists:
+                return subdomain
+    # Default to demo schema (or raise 404)
+    raise HTTPException(status_code=404, detail="School not found")
+
+@asynccontextmanager
+async def get_tenant_conn(tenant_schema):
+    async with pool.acquire() as conn:
+        await conn.execute(f'SET search_path TO "{tenant_schema}"')
+        yield conn
+        await conn.execute('SET search_path TO public')
+
+# Dependency to get tenant connection
+async def get_tenant_db(request: Request):
+    tenant = await get_tenant_schema(request)
+    conn = await pool.acquire()
+    await conn.execute(f'SET search_path TO "{tenant}"')
+    try:
+        yield conn
+    finally:
+        await conn.execute('SET search_path TO public')
+        await pool.release(conn)
+
+app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-def get_tenant_conn(request: Request):
-    if not hasattr(request.state, "db_conn"):
-        raise HTTPException(status_code=500, detail="Database connection not available")
-    return request.state.db_conn
+@app.on_event("startup")
+async def startup():
+    await init_pool()
 
 def is_logged_in(request: Request):
     return request.cookies.get("active_user") is not None
 
-def generate_professional_sku(category, name, s_class="", subject=""):
-    clean_name = "".join(c for c in name if c.isalnum()).upper()[:5]
-    clean_sub = "".join(c for c in subject if c.isalnum()).upper()[:4] if subject else "GEN"
-    clean_class = "".join(c for c in s_class if c.isalnum()).upper() if s_class else "ALL"
+def generate_professional_sku(category: str, name: str, s_class: str = "", subject: str = ""):
+    clean_name = "".join([c for c in name if c.isalnum()]).upper()[:5]
+    clean_sub = "".join([c for c in subject if c.isalnum()]).upper()[:4] if subject else "GEN"
+    clean_class = "".join([c for c in s_class if c.isalnum()]).upper() if s_class else "ALL"
     rand_suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
     cat_lower = category.strip().lower()
     if "book" in cat_lower and "notebook" not in cat_lower:
@@ -75,7 +202,7 @@ def generate_professional_sku(category, name, s_class="", subject=""):
     else:
         return f"ST-{clean_name}-{rand_suffix}"
 
-# ---------- SUPER ADMIN ROUTES (NO TENANT) ----------
+# ------------------- SUPER ADMIN ROUTES -------------------
 @app.get("/super-admin/login", response_class=HTMLResponse)
 async def super_admin_login(request: Request):
     return templates.TemplateResponse(request, "super_admin_login.html")
@@ -92,52 +219,41 @@ async def super_admin_do_login(request: Request, username: str = Form(...), pass
 async def super_admin_dashboard(request: Request):
     if request.cookies.get("super_admin") != "true":
         return RedirectResponse(url="/super-admin/login")
-    pool = await get_pool()
     async with pool.acquire() as conn:
-        schools = await conn.fetch("SELECT id, name, subdomain, admin_username, created_at FROM public.schools ORDER BY id")
+        schools = await conn.fetch("SELECT id, name, subdomain, created_at FROM public.schools ORDER BY id")
     return templates.TemplateResponse(request, "super_admin_dashboard.html", {"schools": schools})
 
 @app.post("/super-admin/create-school")
-async def create_school(request: Request, name: str = Form(...), subdomain: str = Form(...),
-                        admin_username: str = Form(...), admin_password: str = Form(...)):
+async def create_school(request: Request, name: str = Form(...), subdomain: str = Form(...)):
     if request.cookies.get("super_admin") != "true":
         raise HTTPException(status_code=401)
     subdomain = subdomain.lower().strip()
-    pool = await get_pool()
+    # Create school record
     async with pool.acquire() as conn:
         try:
-            await conn.execute(
-                "INSERT INTO public.schools (name, subdomain, admin_username, admin_password) VALUES ($1, $2, $3, $4)",
-                name, subdomain, admin_username, admin_password
-            )
-            await create_tenant_schema(subdomain, admin_username, admin_password)
-        except Exception as e:
-            if "unique constraint" in str(e).lower():
-                raise HTTPException(status_code=400, detail="Subdomain already exists")
-            raise
+            await conn.execute("INSERT INTO public.schools (name, subdomain) VALUES ($1, $2)", name, subdomain)
+            # Create schema for new tenant
+            await create_tenant_schema(subdomain)
+        except asyncpg.UniqueViolationError:
+            raise HTTPException(status_code=400, detail="Subdomain already exists")
     return RedirectResponse(url="/super-admin/dashboard", status_code=303)
 
-@app.get("/super-admin/logout")
-async def super_admin_logout():
-    resp = RedirectResponse(url="/super-admin/login", status_code=303)
-    resp.delete_cookie("super_admin")
-    return resp
+# ------------------- TENANT ROUTES (unchanged logic, adapted to asyncpg) -------------------
 
-# ---------- TENANT ROUTES (protected) ----------
 @app.get("/")
-async def index(request: Request):
+async def index(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(request, "pos_professional.html", {"active_page": "pos"})
 
 @app.get("/pos")
-async def pos_page(request: Request):
+async def pos_page(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(request, "pos_professional.html", {"active_page": "pos"})
 
 @app.get("/inventory")
-async def inventory_page(request: Request):
+async def inventory_page(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(request, "inventory.html", {"active_page": "inventory"})
@@ -147,8 +263,7 @@ async def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html")
 
 @app.post("/login")
-async def do_login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
-    conn = get_tenant_conn(request)
+async def do_login(request: Request, response: Response, username: str = Form(...), password: str = Form(...), conn=Depends(get_tenant_db)):
     user = await conn.fetchrow("SELECT * FROM users WHERE username = $1 AND password = $2", username, password)
     if not user and username == "admin" and password == "admin":
         await conn.execute("INSERT INTO users (username, password) VALUES ('admin', 'admin') ON CONFLICT DO NOTHING")
@@ -166,10 +281,9 @@ async def logout():
     return resp
 
 @app.get("/sales")
-async def sales_page(request: Request):
+async def sales_page(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
-    conn = get_tenant_conn(request)
     all_sales = await conn.fetch("SELECT * FROM sales ORDER BY id DESC")
     items_query = """
         SELECT si.sale_id, si.qty, si.price, si.sku, p.name as product_name, p.category, p.subject, p.student_class
@@ -190,8 +304,7 @@ async def sales_page(request: Request):
     })
 
 @app.get("/api/products/check-existing")
-async def check_existing(request: Request, sku: str = None, barcode: str = None, name: str = None, s_class: str = None):
-    conn = get_tenant_conn(request)
+async def check_existing(sku: str = None, barcode: str = None, name: str = None, s_class: str = None, conn=Depends(get_tenant_db)):
     if sku:
         result = await conn.fetchrow("SELECT * FROM products WHERE sku = $1", sku)
     elif barcode:
@@ -220,10 +333,10 @@ async def smart_add(
     stock: int = Form(...),
     barcode: str = Form(""),
     force_new: str = Form("false"),
+    conn=Depends(get_tenant_db)
 ):
     if not is_logged_in(request):
         raise HTTPException(status_code=401)
-    conn = get_tenant_conn(request)
     is_force_new = force_new.lower() == "true"
     if mode in ['update', 'edit'] and prod_id and not is_force_new:
         await conn.execute("UPDATE products SET stock = stock + $1, purchase_price = $2, selling_price = $3 WHERE id = $4",
@@ -238,18 +351,16 @@ async def smart_add(
     return {"status": "success"}
 
 @app.get("/api/inventory")
-async def list_inv(request: Request):
+async def list_inv(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         raise HTTPException(status_code=401)
-    conn = get_tenant_conn(request)
     data = await conn.fetch("SELECT * FROM products ORDER BY id DESC")
     return [dict(r) for r in data]
 
 @app.get("/api/sales-recent")
-async def recent_sales(request: Request):
+async def recent_sales(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         raise HTTPException(status_code=401)
-    conn = get_tenant_conn(request)
     data = await conn.fetch("""
         SELECT id, receipt_number, total_amount, payment_status, timestamp
         FROM sales ORDER BY id DESC LIMIT 5
@@ -270,10 +381,10 @@ async def checkout(
     status: str = Form(...),
     sale_type: str = Form("Single Item"),
     cash_paid: float = Form(0),
+    conn=Depends(get_tenant_db)
 ):
     if not is_logged_in(request):
         raise HTTPException(status_code=401)
-    conn = get_tenant_conn(request)
     receipt = "REC-" + "".join(random.choices(string.digits, k=6))
     items = json.loads(items_json)
     try:
@@ -303,10 +414,9 @@ async def checkout(
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/receipt/{sale_id}")
-async def get_receipt(request: Request, sale_id: int):
+async def get_receipt(request: Request, sale_id: int, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         raise HTTPException(status_code=401)
-    conn = get_tenant_conn(request)
     sale = await conn.fetchrow("SELECT * FROM sales WHERE id = $1", sale_id)
     if not sale:
         raise HTTPException(status_code=404, detail="Sale transaction not found")
@@ -320,10 +430,9 @@ async def get_receipt(request: Request, sale_id: int):
     return receipt_data
 
 @app.get("/api/v2/analytics")
-async def get_fast_stats(request: Request):
+async def get_fast_stats(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         raise HTTPException(status_code=401)
-    conn = get_tenant_conn(request)
     stock_val = await conn.fetchval("SELECT SUM(stock * selling_price) FROM products")
     low_stock = await conn.fetchval("SELECT COUNT(*) FROM products WHERE stock < 10")
     profit_today = await conn.fetchval("SELECT SUM(profit) FROM sales WHERE DATE(timestamp) = CURRENT_DATE")
@@ -336,10 +445,9 @@ async def get_fast_stats(request: Request):
     }
 
 @app.get("/product/{product_id}")
-async def product_detail(request: Request, product_id: int):
+async def product_detail(request: Request, product_id: int, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
-    conn = get_tenant_conn(request)
     product = await conn.fetchrow("SELECT * FROM products WHERE id = $1", product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -373,39 +481,25 @@ async def product_detail(request: Request, product_id: int):
     })
 
 @app.get("/customers")
-async def list_registered_customers(request: Request):
+async def list_registered_customers(request: Request, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
-    conn = get_tenant_conn(request)
-    # Fixed PostgreSQL GROUP BY query
     query = """
         SELECT cnic, student_name, father_name, phone_no, student_class, address,
                COUNT(id) as total_orders, SUM(total_amount) as total_spent
-        FROM sales
-        WHERE cnic IS NOT NULL AND cnic != ''
-        GROUP BY cnic, student_name, father_name, phone_no, student_class, address
-        ORDER BY total_spent DESC
+        FROM sales WHERE cnic IS NOT NULL AND cnic != '' GROUP BY cnic ORDER BY total_spent DESC
     """
     customers = await conn.fetch(query)
     return templates.TemplateResponse(request, "customers.html", {"active_page": "customers", "customers": [dict(c) for c in customers]})
 
 @app.get("/customers/profile/{cnic_id}")
-async def view_customer_detailed_profile(request: Request, cnic_id: str):
+async def view_customer_detailed_profile(request: Request, cnic_id: str, conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
-    conn = get_tenant_conn(request)
     profile = await conn.fetchrow("SELECT * FROM sales WHERE cnic = $1 LIMIT 1", cnic_id)
-    profile = dict(profile)
-    if isinstance(profile.get("timestamp"), datetime):
-        profile["timestamp"] = profile["timestamp"].isoformat()
     if not profile:
         raise HTTPException(status_code=404, detail="Customer not found")
     history = await conn.fetch("SELECT * FROM sales WHERE cnic = $1 ORDER BY id DESC", cnic_id)
-    # Convert datetime objects to string for JSON serialization
-    history = [dict(row) for row in history]
-    for row in history:
-        if isinstance(row.get("timestamp"), datetime):
-            row["timestamp"] = row["timestamp"].isoformat()
     sale_ids = [row['id'] for row in history]
     items_map = {}
     if sale_ids:
@@ -435,10 +529,9 @@ async def view_customer_detailed_profile(request: Request, cnic_id: str):
     })
 
 @app.get("/analytics")
-async def operations_analytics_dashboard(request: Request, range: str = "all"):
+async def operations_analytics_dashboard(request: Request, range: str = "all", conn=Depends(get_tenant_db)):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
-    conn = get_tenant_conn(request)
     date_filter = ""
     if range == "today":
         date_filter = "WHERE DATE(timestamp) = CURRENT_DATE"
@@ -488,7 +581,73 @@ async def operations_analytics_dashboard(request: Request, range: str = "all"):
         "class_sales": [dict(c) for c in class_sales],
         "low_stock_items": [dict(l) for l in low_stock_items]
     })
+EOF
 
-@app.get("/favicon.ico")
-async def favicon():
-    return RedirectResponse(url="/static/favicon.ico")
+# --- 5. Create super admin templates ---
+mkdir -p app/templates
+
+cat > app/templates/super_admin_login.html <<'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Super Admin Login</title>
+    <script src="/static/js/tailwindcss.js"></script>
+</head>
+<body class="bg-gray-900 flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+        <h1 class="text-2xl font-bold mb-4">Super Admin Login</h1>
+        <form method="post" action="/super-admin/login">
+            <input type="text" name="username" placeholder="Username" class="w-full border p-2 mb-2 rounded">
+            <input type="password" name="password" placeholder="Password" class="w-full border p-2 mb-4 rounded">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full">Login</button>
+        </form>
+        {% if request.query_params.get('error') %}
+            <p class="text-red-500 mt-2">Invalid credentials</p>
+        {% endif %}
+    </div>
+</body>
+</html>
+EOF
+
+cat > app/templates/super_admin_dashboard.html <<'EOF'
+{% extends "index.html" %}
+{% block title %}Super Admin Dashboard{% endblock %}
+{% block header_title %}Super Admin - Manage Schools{% endblock %}
+{% block page_content %}
+<div class="bg-white p-6 rounded shadow">
+    <h2 class="text-xl font-bold mb-4">Create New School</h2>
+    <form method="post" action="/super-admin/create-school" class="space-y-3">
+        <input type="text" name="name" placeholder="School Name" class="w-full border p-2 rounded" required>
+        <input type="text" name="subdomain" placeholder="Subdomain (e.g., myschool)" class="w-full border p-2 rounded" required>
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Create School</button>
+    </form>
+    <hr class="my-6">
+    <h3 class="text-lg font-semibold">Existing Schools</h3>
+    <table class="w-full mt-3 border">
+        <thead><tr><th>ID</th><th>Name</th><th>Subdomain</th><th>Created</th></tr></thead>
+        <tbody>
+            {% for school in schools %}
+            <tr>
+                <td>{{ school.id }}</td>
+                <td>{{ school.name }}</td>
+                <td>{{ school.subdomain }}</td>
+                <td>{{ school.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+EOF
+
+# --- 6. Replace main.py with new version ---
+mv app/main_new.py app/main.py
+
+echo "===== Patcher completed successfully! ====="
+echo "Next steps:"
+echo "1. Start the server with: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+echo "2. Access super admin at: http://localhost:8000/super-admin/login (default: superadmin/superadmin123)"
+echo "3. Create schools. Each school will be accessible via its subdomain (e.g., http://demo.localhost:8000)."
+echo "   For local testing, add entries to /etc/hosts: 127.0.0.1 demo.localhost"
+echo "4. Existing SQLite data not migrated. If needed, run migration script manually."
+EOF

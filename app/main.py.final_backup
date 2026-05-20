@@ -23,8 +23,11 @@ SUPER_ADMIN_PASS = os.getenv("SUPER_ADMIN_PASS", "superadmin123")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize database pool
     await init_db_pool()
     pool = await get_pool()
+    
+    # Create public schema and schools table
     async with pool.acquire() as conn:
         await conn.execute("""
             CREATE SCHEMA IF NOT EXISTS public;
@@ -45,6 +48,7 @@ async def lifespan(app: FastAPI):
             )
             await create_tenant_schema("demo", "admin", "admin")
     yield
+    # Close pool on shutdown
     await pool.close()
 
 app = FastAPI(lifespan=lifespan)
@@ -175,6 +179,13 @@ async def sales_page(request: Request):
         SELECT si.sale_id, si.qty, si.price, si.sku, p.name as product_name, p.category, p.subject, p.student_class
         FROM sale_items si
         LEFT JOIN products p ON si.product_id = p.id
+    """
+    query = """
+        SELECT cnic, student_name, father_name, phone_no, student_class, address,
+               COUNT(id) as total_orders, SUM(total_amount) as total_spent
+        FROM sales WHERE cnic IS NOT NULL AND cnic != 
+        GROUP BY cnic, student_name, father_name, phone_no, student_class, address
+        ORDER BY total_spent DESC
     """
     all_items = await conn.fetch(items_query)
     sales_items_map = {}
@@ -377,12 +388,10 @@ async def list_registered_customers(request: Request):
     if not is_logged_in(request):
         return RedirectResponse(url="/login", status_code=303)
     conn = get_tenant_conn(request)
-    # Fixed PostgreSQL GROUP BY query
     query = """
         SELECT cnic, student_name, father_name, phone_no, student_class, address,
                COUNT(id) as total_orders, SUM(total_amount) as total_spent
-        FROM sales
-        WHERE cnic IS NOT NULL AND cnic != ''
+        FROM sales WHERE cnic IS NOT NULL AND cnic != 
         GROUP BY cnic, student_name, father_name, phone_no, student_class, address
         ORDER BY total_spent DESC
     """
@@ -395,17 +404,9 @@ async def view_customer_detailed_profile(request: Request, cnic_id: str):
         return RedirectResponse(url="/login", status_code=303)
     conn = get_tenant_conn(request)
     profile = await conn.fetchrow("SELECT * FROM sales WHERE cnic = $1 LIMIT 1", cnic_id)
-    profile = dict(profile)
-    if isinstance(profile.get("timestamp"), datetime):
-        profile["timestamp"] = profile["timestamp"].isoformat()
     if not profile:
         raise HTTPException(status_code=404, detail="Customer not found")
     history = await conn.fetch("SELECT * FROM sales WHERE cnic = $1 ORDER BY id DESC", cnic_id)
-    # Convert datetime objects to string for JSON serialization
-    history = [dict(row) for row in history]
-    for row in history:
-        if isinstance(row.get("timestamp"), datetime):
-            row["timestamp"] = row["timestamp"].isoformat()
     sale_ids = [row['id'] for row in history]
     items_map = {}
     if sale_ids:

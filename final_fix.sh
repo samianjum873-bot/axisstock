@@ -1,3 +1,16 @@
+#!/bin/bash
+# Final fix for PostgreSQL GROUP BY, duplicate query, and super admin isolation
+
+cd ~/axisstock
+source venv/bin/activate
+
+echo "Applying final fixes to main.py..."
+
+# Backup current main.py
+cp app/main.py app/main.py.final_backup
+
+# Use a temporary file to rebuild main.py correctly
+cat > app/main_fixed.py <<'EOF'
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -395,17 +408,9 @@ async def view_customer_detailed_profile(request: Request, cnic_id: str):
         return RedirectResponse(url="/login", status_code=303)
     conn = get_tenant_conn(request)
     profile = await conn.fetchrow("SELECT * FROM sales WHERE cnic = $1 LIMIT 1", cnic_id)
-    profile = dict(profile)
-    if isinstance(profile.get("timestamp"), datetime):
-        profile["timestamp"] = profile["timestamp"].isoformat()
     if not profile:
         raise HTTPException(status_code=404, detail="Customer not found")
     history = await conn.fetch("SELECT * FROM sales WHERE cnic = $1 ORDER BY id DESC", cnic_id)
-    # Convert datetime objects to string for JSON serialization
-    history = [dict(row) for row in history]
-    for row in history:
-        if isinstance(row.get("timestamp"), datetime):
-            row["timestamp"] = row["timestamp"].isoformat()
     sale_ids = [row['id'] for row in history]
     items_map = {}
     if sale_ids:
@@ -492,3 +497,14 @@ async def operations_analytics_dashboard(request: Request, range: str = "all"):
 @app.get("/favicon.ico")
 async def favicon():
     return RedirectResponse(url="/static/favicon.ico")
+EOF
+
+# Replace main.py with the fixed version
+mv app/main_fixed.py app/main.py
+
+# Ensure static favicon exists
+touch app/static/favicon.ico
+
+# Restart the server
+echo "All fixes applied. Restarting server..."
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

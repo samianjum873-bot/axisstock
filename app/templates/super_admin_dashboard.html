@@ -1,0 +1,29 @@
+{% extends "super_admin_base.html" %}
+{% block content %}
+<div class="bg-white p-6 rounded shadow">
+    <h2 class="text-xl font-bold mb-4">Create New School</h2>
+    <form method="post" action="/super-admin/create-school" class="space-y-3">
+        <input type="text" name="name" placeholder="School Name" class="w-full border p-2 rounded" required>
+        <input type="text" name="subdomain" placeholder="Subdomain (e.g., myschool)" class="w-full border p-2 rounded" required>
+        <input type="text" name="admin_username" placeholder="Admin Username" class="w-full border p-2 rounded" required>
+        <input type="password" name="admin_password" placeholder="Admin Password" class="w-full border p-2 rounded" required>
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Create School</button>
+    </form>
+    <hr class="my-6">
+    <h3 class="text-lg font-semibold">Existing Schools</h3>
+    <table class="w-full mt-3 border">
+        <thead><tr><th>ID</th><th>Name</th><th>Subdomain</th><th>Admin Username</th><th>Created</th></tr></thead>
+        <tbody>
+            {% for school in schools %}
+            <tr>
+                <td>{{ school.id }}</td>
+                <td>{{ school.name }}</td>
+                <td>{{ school.subdomain }}</td>
+                <td>{{ school.admin_username }}</td>
+                <td>{{ school.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
