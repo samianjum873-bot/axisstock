@@ -4,7 +4,7 @@ from app.database import get_pool, tenant_exists
 
 class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path.startswith("/super-admin") or request.url.path.startswith("/static"):
+        if request.url.path.startswith("/super-admin") or request.url.path.startswith("/static") or request.url.path == "/favicon.ico":
             request.state.tenant = None
             return await call_next(request)
 
