@@ -48,7 +48,8 @@ async def create_tenant_schema(schema_name: str, admin_username: str, admin_pass
                 selling_price REAL NOT NULL,
                 stock INTEGER NOT NULL DEFAULT 0,
                 tag TEXT,
-                variation TEXT
+                variation TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS sales (
                 id SERIAL PRIMARY KEY,
