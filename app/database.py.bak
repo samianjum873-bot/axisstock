@@ -4,8 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import bcrypt
-
 pool = None
 
 async def init_db_pool():
@@ -34,7 +32,7 @@ async def create_tenant_schema(schema_name: str, admin_username: str, admin_pass
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL
+                password TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS products (
                 id SERIAL PRIMARY KEY,
