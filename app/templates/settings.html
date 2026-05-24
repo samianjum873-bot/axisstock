@@ -1,0 +1,122 @@
+{% extends "index.html" %}
+
+{% block title %}User Management | AXIS{% endblock %}
+{% block header_title %}User & Role Management{% endblock %}
+
+{% block page_content %}
+<div class="space-y-6">
+    <!-- Create User Form -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <h3 class="text-lg font-black text-slate-800 mb-4">Create New User</h3>
+        <form id="createUserForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1">Username</label>
+                    <input type="text" id="newUsername" required class="w-full border p-3 rounded-xl font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1">Password</label>
+                    <input type="password" id="newPassword" required class="w-full border p-3 rounded-xl font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1">Role</label>
+                    <select id="newRoleId" class="w-full border p-3 rounded-xl font-bold">
+                        {% for role in roles %}
+                        <option value="{{ role.id }}">{{ role.name }} - {{ role.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-black text-sm">Create User</button>
+        </form>
+    </div>
+
+    <!-- Users List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-4 bg-slate-50 border-b">
+            <h3 class="text-lg font-black text-slate-800">System Users</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-slate-100 text-slate-600 text-xs font-black uppercase">
+                    <tr>
+                        <th class="p-4">ID</th>
+                        <th class="p-4">Username</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4">Created At</th>
+                        <th class="p-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for user in users %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-4">{{ user.id }}</td>
+                        <td class="p-4 font-bold">{{ user.username }}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-1 rounded text-xs font-black {% if user.is_active %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ "Active" if user.is_active else "Inactive" }}
+                            </span>
+                        </td>
+                        <td class="p-4 text-sm">{{ user.created_at }}</td>
+                        <td class="p-4 space-x-2">
+                            <button onclick="toggleUserStatus({{ user.id }})" class="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded font-black">
+                                {{ "Disable" if user.is_active else "Enable" }}
+                            </button>
+                            <button onclick="resetPassword({{ user.id }})" class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded font-black">Reset Password</button>
+                            <button onclick="deleteUser({{ user.id }})" class="text-xs bg-red-100 text-red-700 px-3 py-1 rounded font-black">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('username', document.getElementById('newUsername').value);
+    formData.append('password', document.getElementById('newPassword').value);
+    formData.append('role_id', document.getElementById('newRoleId').value);
+    const res = await fetch('/api/users/create', { method: 'POST', body: formData });
+    const data = await res.json();
+    if(data.status === 'success') {
+        location.reload();
+    } else {
+        alert(data.message);
+    }
+});
+
+async function toggleUserStatus(userId) {
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    await fetch('/api/users/toggle-status', { method: 'POST', body: formData });
+    location.reload();
+}
+
+async function resetPassword(userId) {
+    const newPass = prompt("Enter new password:");
+    if(!newPass) return;
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    formData.append('new_password', newPass);
+    await fetch('/api/users/reset-password', { method: 'POST', body: formData });
+    alert("Password reset successfully");
+}
+
+async function deleteUser(userId) {
+    if(!confirm("Are you sure? This action cannot be undone.")) return;
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    const res = await fetch('/api/users/delete', { method: 'POST', body: formData });
+    const data = await res.json();
+    if(data.status === 'success') {
+        location.reload();
+    } else {
+        alert(data.message);
+    }
+}
+</script>
+{% endblock %}

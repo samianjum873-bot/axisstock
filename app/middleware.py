@@ -10,17 +10,22 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
         host = request.headers.get("host", "")
         host = host.split(":")[0]
-        parts = host.split(".")
-        if len(parts) >= 2:
-            subdomain = parts[0]
-            if await tenant_exists(subdomain):
-                request.state.tenant = subdomain
-                pool = await get_pool()
-                conn = await pool.acquire()
-                await conn.execute(f'SET search_path TO "{subdomain}"')
-                request.state.db_conn = conn
-                response = await call_next(request)
-                await conn.execute('SET search_path TO public')
-                await pool.release(conn)
-                return response
+        # Detect subuser domain: school.subuser.localhost
+        is_subuser = ".subuser." in host
+        if is_subuser:
+            subdomain = host.split(".subuser.")[0]
+        else:
+            parts = host.split(".")
+            subdomain = parts[0] if len(parts) >= 2 else None
+        if subdomain and await tenant_exists(subdomain):
+            request.state.tenant = subdomain
+            request.state.is_subuser_domain = is_subuser
+            pool = await get_pool()
+            conn = await pool.acquire()
+            await conn.execute(f'SET search_path TO "{subdomain}"')
+            request.state.db_conn = conn
+            response = await call_next(request)
+            await conn.execute('SET search_path TO public')
+            await pool.release(conn)
+            return response
         raise HTTPException(status_code=404, detail="School not found")

@@ -18,9 +18,11 @@
             <h1 class="text-xl font-black italic uppercase text-yellow-400">Axis Stock <span class="text-white"></span></h1>
         </div>
         <nav class="flex-1 mt-6 px-4 space-y-2">
+            <!-- POS tab - always show -->
             <a href="/pos" id="link-pos" class="sidebar-link {% if active_page == 'pos' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-calculator w-8"></i> <span class="font-bold text-xs">COUNTER BILLING</span>
             </a>
+            {% if role == 'admin' %}
             <a href="/inventory" id="link-inventory" class="sidebar-link {% if active_page == 'inventory' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-box-open w-8"></i> <span class="font-bold text-xs">STOCK MANAGER</span>
             </a>
@@ -29,10 +31,14 @@
             </a>
             <a href="/customers" id="link-customers" class="sidebar-link {% if active_page == 'customers' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-users w-8"></i> <span class="font-bold text-xs">CUSTOMER DATABASE</span>
+            </a>
             <a href="/analytics" id="link-analytics" class="sidebar-link {% if active_page == 'analytics' %}active{% endif %} w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
                 <i class="fas fa-chart-pie w-8 text-yellow-400"></i> <span class="font-bold text-xs text-yellow-400">REPORTS & ANALYTICS</span>
             </a>
+            <a href="/settings" id="link-settings" class="sidebar-link w-full flex items-center p-4 rounded-xl transition hover:bg-indigo-900">
+                <i class="fas fa-cog w-8"></i> <span class="font-bold text-xs">SETTINGS</span>
             </a>
+            {% endif %}
         </nav>
         
         <!-- Logout Button Session Location -->

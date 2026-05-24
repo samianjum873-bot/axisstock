@@ -15,7 +15,7 @@
         <!-- Professional Error Alert Banner -->
         <div id="errorAlert" class="hidden bg-rose-50 border-2 border-rose-500 p-3 rounded-xl mb-4 flex items-center space-x-2 text-rose-700 animate-pulse">
             <i class="fas fa-exclamation-triangle"></i>
-            <span class="text-xs font-black uppercase">Invalid Terminal Credentials!</span>
+            <span id="errorMsg" class="text-xs font-black uppercase">Invalid Terminal Credentials!</span>
         </div>
         
         <form action="/login" method="post" class="space-y-4">
@@ -43,8 +43,15 @@
         // Professional URL Parameter Scanner for Errors
         document.addEventListener("DOMContentLoaded", function() {
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('error') === '1') {
+            const errorCode = urlParams.get('error');
+            if (errorCode) {
                 const alertBox = document.getElementById('errorAlert');
+                const msgSpan = document.getElementById('errorMsg');
+                if (errorCode === '1') msgSpan.innerText = 'Invalid Username or Password!';
+                else if (errorCode === 'inactive') msgSpan.innerText = 'Account Disabled! Contact Admin.';
+                else if (errorCode === 'admin_not_allowed') msgSpan.innerText = 'Admin cannot login from subuser domain.';
+                else if (errorCode === 'subuser_not_allowed') msgSpan.innerText = 'Sub-users must login via subuser domain.';
+                else msgSpan.innerText = 'Access Denied!';
                 alertBox.classList.remove('hidden');
             }
         });

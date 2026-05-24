@@ -1,4 +1,7 @@
-from dotenv import load_dotenv
+#!/usr/bin/env python3
+
+# This restores the complete app/main.py with all API routes
+full_main = '''from dotenv import load_dotenv
 load_dotenv()
 
 import os
@@ -693,3 +696,8 @@ async def forbidden(request: Request):
 @app.get("/favicon.ico")
 async def favicon():
     return RedirectResponse(url="/static/favicon.ico")
+'''
+
+with open("app/main.py", "w") as f:
+    f.write(full_main)
+print("✅ Full main.py restored with all API endpoints")
