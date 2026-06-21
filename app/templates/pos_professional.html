@@ -4,6 +4,12 @@
 
 {% block header_title %}Professional Billing & Counter Service{% endblock %}
 
+{% block header_actions %}
+    <button onclick="refreshData()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg hover:bg-indigo-700 transition tracking-widest uppercase">
+        Refresh Reports
+    </button>
+{% endblock %}
+
 {% block page_content %}
 <!-- Strict Thermal Print Overrides -->
 <style>
@@ -42,7 +48,7 @@
 </style>
 
 <!-- Load html2canvas Library once -->
-<script src="/static/js/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <div class="space-y-6">
     <!-- MAIN BILLING AREA -->

@@ -7,14 +7,22 @@ from datetime import datetime
 import os
 from app.database.models import init_db, DB_PATH
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+DATABASE_DIR = os.path.join(BASE_DIR, "database")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+
+os.makedirs(STATIC_DIR, exist_ok=True)
+os.makedirs(DATABASE_DIR, exist_ok=True)
+
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 @app.on_event("startup")
 async def startup_event():
-    if not os.path.exists("app/database"):
-        os.makedirs("app/database")
+    if not os.path.exists(DATABASE_DIR):
+        os.makedirs(DATABASE_DIR)
     # Initialize the synchronized dynamic relational schemas
     init_db()
 

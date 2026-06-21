@@ -1,4 +1,25 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
 venv/
 .env
+*.db
+*.sqlite3
+
+# Backup files
+*.bak
+*.codefix.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+*.tmp
+
+# Local config
+g

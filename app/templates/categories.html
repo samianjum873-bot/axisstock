@@ -1,0 +1,74 @@
+{% extends "index.html" %}
+{% block title %}Manage Categories{% endblock %}
+{% block header_title %}Product Categories Manager{% endblock %}
+{% block page_content %}
+<div class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-black text-slate-800">Your Shop Categories</h2>
+        <button onclick="showAddCategory()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-sm">+ New Category</button>
+    </div>
+    <div id="categoryList" class="space-y-2">
+        <p class="text-slate-400">Loading...</p>
+    </div>
+</div>
+
+<div id="categoryModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-6 w-96">
+        <h3 id="modalTitle" class="text-lg font-black mb-4">Add Category</h3>
+        <input type="text" id="catName" placeholder="Category Name" class="w-full border p-3 rounded-lg mb-3">
+        <input type="text" id="catDesc" placeholder="Description (optional)" class="w-full border p-3 rounded-lg mb-4">
+        <div class="flex gap-2">
+            <button onclick="saveCategory()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg flex-1">Save</button>
+            <button onclick="closeModal()" class="bg-slate-200 px-4 py-2 rounded-lg flex-1">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let editingId = null;
+    async function loadCategories() {
+        const res = await fetch('/api/categories');
+        const cats = await res.json();
+        const container = document.getElementById('categoryList');
+        if(cats.length === 0) {
+            container.innerHTML = '<p class="text-slate-400 text-center py-8">No categories yet. Create one to organize your products.</p>';
+            return;
+        }
+        container.innerHTML = cats.map(c => `
+            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl border">
+                <div>
+                    <div class="font-black text-slate-800">${c.name}</div>
+                    <div class="text-xs text-slate-500">${c.description || ''}</div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="editCategory(${c.id}, '${c.name}', '${c.description || ''}')" class="text-indigo-600 text-sm">Edit</button>
+                    <button onclick="deleteCategory(${c.id})" class="text-red-600 text-sm">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    }
+    function showAddCategory() { editingId = null; document.getElementById('modalTitle').innerText = 'Add Category'; document.getElementById('catName').value = ''; document.getElementById('catDesc').value = ''; document.getElementById('categoryModal').classList.remove('hidden'); }
+    function editCategory(id, name, desc) { editingId = id; document.getElementById('modalTitle').innerText = 'Edit Category'; document.getElementById('catName').value = name; document.getElementById('catDesc').value = desc; document.getElementById('categoryModal').classList.remove('hidden'); }
+    async function saveCategory() {
+        const name = document.getElementById('catName').value.trim();
+        if(!name) return alert('Category name required');
+        const desc = document.getElementById('catDesc').value;
+        const url = editingId ? `/api/categories/${editingId}` : '/api/categories';
+        const method = editingId ? 'PUT' : 'POST';
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', desc);
+        const res = await fetch(url, { method, body: formData });
+        if(res.ok) { closeModal(); loadCategories(); }
+        else alert('Error saving category');
+    }
+    async function deleteCategory(id) {
+        if(confirm('Delete this category? Products will be unassigned.')) {
+            await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+            loadCategories();
+        }
+    }
+    function closeModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+    document.addEventListener('DOMContentLoaded', loadCategories);
+</script>
+{% endblock %}

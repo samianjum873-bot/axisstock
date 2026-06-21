@@ -6,10 +6,18 @@ import sqlite3, random, string, json
 from datetime import datetime
 import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+DATABASE_DIR = os.path.join(BASE_DIR, "database")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+
+os.makedirs(STATIC_DIR, exist_ok=True)
+os.makedirs(DATABASE_DIR, exist_ok=True)
+
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
-DB_PATH = "app/database/school_store.db"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+DB_PATH = os.path.join(DATABASE_DIR, "school_store.db")
 
 @app.on_event("startup")
 async def startup_event():

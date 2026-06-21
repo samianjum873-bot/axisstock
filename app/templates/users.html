@@ -1,0 +1,113 @@
+{% extends "index.html" %}
+
+{% block title %}Manage Users | AXIS{% endblock %}
+{% block header_title %}Sub-User Management{% endblock %}
+
+{% block page_content %}
+<div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-lg font-black text-slate-800">Users & Roles</h2>
+        <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider">
+            <i class="fas fa-plus mr-1"></i> Add User
+        </button>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs font-bold">
+            <thead class="bg-slate-50 text-slate-400 uppercase">
+                <tr><th class="p-3">Username</th><th class="p-3">Role</th><th class="p-3">Permissions</th><th class="p-3">Created</th><th class="p-3 text-center">Actions</th></tr>
+            </thead>
+            <tbody id="usersTableBody" class="divide-y">
+                <tr><td colspan="5" class="p-4 text-center text-slate-400">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="userModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
+        <h3 id="modalTitle" class="text-lg font-black">Add User</h3>
+        <input type="hidden" id="userId">
+        <div><input type="text" id="username" placeholder="Username" class="w-full border p-2 rounded-lg font-bold"></div>
+        <div><input type="password" id="password" placeholder="Password" class="w-full border p-2 rounded-lg font-bold"></div>
+        <div>
+            <select id="role" class="w-full border p-2 rounded-lg font-bold">
+                <option value="cashier">Cashier</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-xs text-slate-500">Permissions (comma-separated):</label>
+            <input type="text" id="permissions" value="pos,sales_view,inventory_view" class="w-full border p-2 rounded-lg font-mono text-xs">
+        </div>
+        <div class="flex gap-2 pt-3">
+            <button onclick="saveUser()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-black">Save</button>
+            <button onclick="closeUserModal()" class="flex-1 bg-slate-200 py-2 rounded-lg">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadUsers() {
+        const res = await fetch('/api/users');
+        const users = await res.json();
+        const tbody = document.getElementById('usersTableBody');
+        if(users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">No users found</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map(u => `
+            <tr class="hover:bg-slate-50">
+                <td class="p-3 font-black">${escapeHtml(u.username)}</td>
+                <td class="p-3 capitalize">${u.role}</td>
+                <td class="p-3 text-xs font-mono">${u.permissions}</td>
+                <td class="p-3">${u.created_at || ''}</td>
+                <td class="p-3 text-center space-x-2">
+                    <button onclick="editUser(${u.id}, '${escapeHtml(u.username)}', '${u.role}', '${escapeHtml(u.permissions)}')" class="text-indigo-600"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteUser(${u.id})" class="text-red-600"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openUserModal(userId=null) { document.getElementById('userModal').classList.remove('hidden'); }
+    function closeUserModal() { document.getElementById('userModal').classList.add('hidden'); document.getElementById('userId').value = ''; document.getElementById('username').value = ''; document.getElementById('password').value = ''; document.getElementById('role').value = 'cashier'; document.getElementById('permissions').value = 'pos,sales_view,inventory_view'; }
+
+    async function saveUser() {
+        const id = document.getElementById('userId').value;
+        const data = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            role: document.getElementById('role').value,
+            permissions: document.getElementById('permissions').value
+        };
+        if(!data.username || !data.password) { alert("Username and password required"); return; }
+        let url = '/api/users', method = 'POST';
+        if(id) { url = `/api/users/${id}`; method = 'PUT'; delete data.username; }
+        const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        if(res.ok) { closeUserModal(); loadUsers(); } else alert("Error saving user");
+    }
+
+    function editUser(id, username, role, perms) {
+        document.getElementById('userId').value = id;
+        document.getElementById('username').value = username;
+        document.getElementById('role').value = role;
+        document.getElementById('permissions').value = perms;
+        document.getElementById('password').placeholder = "Leave blank to keep";
+        openUserModal();
+    }
+
+    async function deleteUser(id) {
+        if(confirm("Delete this user?")) {
+            const res = await fetch(`/api/users/${id}`, {method:'DELETE'});
+            if(res.ok) loadUsers(); else alert("Delete failed");
+        }
+    }
+
+    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    loadUsers();
+</script>
+{% endblock %}
