@@ -5,15 +5,21 @@ import sys
 
 BASE_URL = "http://localhost:8000"
 
+MOBILE_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+
 def test_login_mobile():
-    """Test mobile login page."""
-    resp = requests.get(f"{BASE_URL}/login?mobile=1")
+    """Test mobile login page using a mobile user-agent."""
+    resp = requests.get(
+        f"{BASE_URL}/login",
+        headers={"User-Agent": MOBILE_USER_AGENT},
+        timeout=10,
+    )
     print(f"Status: {resp.status_code}")
     print("\n--- First 500 chars of HTML ---")
     print(resp.text[:500])
     
     # Check if it's the mobile template
-    if "mobile/base.html" in resp.text or "AxisStock Mobile" in resp.text or "mobile-container" in resp.text:
+    if "AxisStock Mobile" in resp.text or "mobile-container" in resp.text:
         print("\n✅ Mobile template detected!")
         return True
     else:
