@@ -3,29 +3,47 @@
 {% block title %}Inventory - AxisStock Mobile{% endblock %}
 
 {% block page_content %}
-  <h3 style="font-weight:800;font-size:16px">Inventory</h3>
-  <p style="color:var(--muted);font-size:13px">Browse and manage stock on mobile.</p>
-
-  <div style="margin-top:12px">
-    <input id="invSearch" class="search-box" placeholder="Search by name or SKU" oninput="renderInv()">
-    <div id="invList" class="prod-list" style="margin-top:10px">Loading...</div>
+  <div class="card-block">
+    <div class="page-title">Stock Manager</div>
+    <div class="page-subtitle">Search and review inventory items quickly.</div>
   </div>
 
+  <div style="margin-top:16px">
+    <input id="invSearch" class="search-box" placeholder="Search by name or SKU" oninput="renderInv()">
+  </div>
+
+  <div id="invList" class="grid-list" style="margin-top:14px">Loading...</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 let inv = [];
 async function loadInv(){
-  try{ const res = await fetch('/api/inventory'); inv = await res.json(); renderInv(); }
-  catch(e){ document.getElementById('invList').innerHTML = '<div class="empty-state">Failed loading</div>' }
+  try{
+    const res = await fetch('/api/inventory');
+    inv = await res.json();
+    renderInv();
+  }catch(e){
+    document.getElementById('invList').innerHTML = '<div class="empty-state">Failed loading inventory</div>';
+  }
 }
 function renderInv(){
   const q = document.getElementById('invSearch').value.toLowerCase();
-  const list = inv.filter(p=>!q||p.name.toLowerCase().includes(q)||p.sku.toLowerCase().includes(q));
-  if(!list.length){ document.getElementById('invList').innerHTML = '<div class="empty-state">No items found</div>'; return; }
-  document.getElementById('invList').innerHTML = list.map(p=>`<div class="prod"><div class="name">${p.name}</div><div class="meta">SKU: ${p.sku} • Stock: ${p.stock}</div><div style="display:flex;justify-content:space-between;margin-top:8px"><div style="font-weight:800">Rs. ${p.selling_price}</div><button onclick="viewProduct(${p.id})" style="background:var(--brand);color:white;border:none;padding:6px 8px;border-radius:8px;font-weight:800">View</button></div></div>`).join('');
+  const list = inv.filter(p => !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q)));
+  if(!list.length){
+    document.getElementById('invList').innerHTML = '<div class="empty-state">No items found</div>';
+    return;
+  }
+  document.getElementById('invList').innerHTML = list.map(p => `
+    <a href="/product/${p.id}" class="prod">
+      <div class="name">${p.name}</div>
+      <div class="meta">SKU: ${p.sku} • Stock: ${p.stock}</div>
+      <div class="card-row" style="margin-top:12px;align-items:center;">
+        <div class="card-title">Rs. ${p.selling_price}</div>
+        <div class="status-pill">${p.category || 'General'}</div>
+      </div>
+    </a>`).join('');
 }
-function viewProduct(id){ location.href = '/product/'+id }
+
 document.addEventListener('DOMContentLoaded', loadInv);
 </script>

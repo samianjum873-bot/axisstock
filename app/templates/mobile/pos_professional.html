@@ -3,29 +3,36 @@
 {% block title %}POS - AxisStock Mobile{% endblock %}
 
 {% block header_actions %}
-  <button onclick="refreshData()" style="background:var(--brand);color:white;padding:8px 10px;border-radius:8px;font-weight:800;font-size:12px">Refresh</button>
+  <button class="button button-secondary" onclick="refreshData()">Refresh</button>
 {% endblock %}
 
 {% block page_content %}
-  <div>
-    <div style="margin-bottom:10px">
-      <input id="mSearch" placeholder="Search products..." class="search-box" oninput="renderProducts()">
-    </div>
-
-    <div id="prodList" class="prod-list">
-      <div class="empty-state">Loading products...</div>
-    </div>
-  </div>
-
-  <div id="cartBar" class="cart-bar" style="display:none">
-    <div>
-      <div id="cartSummary" style="font-weight:800">0 items • Rs. 0</div>
-    </div>
-    <div>
-      <button onclick="gotoCheckout()">Checkout</button>
+  <div class="card-block">
+    <div class="card-row">
+      <div>
+        <div class="page-title">Counter Billing</div>
+        <div class="page-subtitle">Add products to the cart and finalize sales fast.</div>
+      </div>
+      <button class="button button-primary" onclick="gotoCheckout()">Checkout</button>
     </div>
   </div>
 
+  <div style="margin-top:16px">
+    <input id="mSearch" placeholder="Search products..." class="search-box" oninput="renderProducts()">
+  </div>
+
+  <div id="prodList" class="grid-list" style="margin-top:14px">
+    <div class="empty-state">Loading products...</div>
+  </div>
+
+  <div id="cartBar" class="card-block" style="display:none;position:fixed;left:16px;right:16px;bottom:72px;z-index:15;">
+    <div class="card-row">
+      <div>
+        <div class="card-title" id="cartSummary">0 items • Rs. 0</div>
+      </div>
+      <button class="button button-primary" onclick="gotoCheckout()">Checkout</button>
+    </div>
+  </div>
 {% endblock %}
 
 {% block scripts %}
@@ -47,21 +54,27 @@ async function loadProducts(){
   }
 }
 
+function safeText(value){
+  return String(value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderProducts(){
   const q = document.getElementById('mSearch')?.value?.toLowerCase() || '';
-  const list = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q)));
+  const list = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q)) || (p.sku && p.sku.toLowerCase().includes(q)));
   if(list.length === 0){
     document.getElementById('prodList').innerHTML = '<div class="empty-state">No products found</div>';
     return;
   }
-  document.getElementById('prodList').innerHTML = list.map(p => `\
-    <div class="prod">\
-      <div class="name">${p.name}</div>\
-      <div class="meta">${p.category || ''} • SKU: ${p.sku}</div>\
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">\
-        <div style="font-weight:800">Rs. ${p.selling_price}</div>\
-        <button onclick="addToCart(${p.id}, '${p.name.replace(/'/g,\\"\\'\\")}', ${p.selling_price})" style="background:var(--brand);color:white;border:none;padding:6px 8px;border-radius:8px;font-weight:800">Add</button>\
-      </div>\
+  document.getElementById('prodList').innerHTML = list.map(p => `
+    <div class="prod">
+      <div>
+        <div class="name">${safeText(p.name)}</div>
+        <div class="meta">${safeText(p.category || 'General')} • SKU: ${safeText(p.sku)}</div>
+      </div>
+      <div class="card-row" style="margin-top:10px;gap:10px;">
+        <div class="card-title">Rs. ${safeText(p.selling_price)}</div>
+        <button class="button button-secondary" onclick="addToCart(${p.id}, '${safeText(p.name).replace(/'/g, "\\'")}', ${p.selling_price})">Add</button>
+      </div>
     </div>`).join('');
 }
 
@@ -76,7 +89,7 @@ function updateCartUI(){
   const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
   const items = cart.reduce((s,i)=>s+i.qty,0);
   if(items>0){
-    document.getElementById('cartBar').style.display='flex';
+    document.getElementById('cartBar').style.display='block';
     document.getElementById('cartSummary').textContent = items + ' items • Rs. ' + total;
   } else {
     document.getElementById('cartBar').style.display='none';
@@ -84,7 +97,6 @@ function updateCartUI(){
 }
 
 function gotoCheckout(){
-  // For now, navigate to desktop checkout modal (keeps backend unchanged)
   window.location.href = '/';
 }
 

@@ -3,10 +3,33 @@
 {% block title %}Analytics - AxisStock Mobile{% endblock %}
 
 {% block page_content %}
-  <h3 style="font-weight:800;font-size:16px">Analytics</h3>
-  <div style="margin-top:12px">
-    <div class="prod" style="padding:12px"><div class="name">Stock Value</div><div class="meta">Rs. {{ stats.stock_valuation }}</div></div>
-    <div class="prod" style="padding:12px;margin-top:8px"><div class="name">Low Stock Items</div><div class="meta">{{ low_stock_items|length }}</div></div>
-    <div class="prod" style="padding:12px;margin-top:8px"><div class="name">Profit (selected)</div><div class="meta">Rs. {{ stats.net_profit }}</div></div>
+  <div class="card-block">
+    <div class="page-title">Reports & Analytics</div>
+    <div class="page-subtitle">Key business metrics for your store.</div>
   </div>
+
+  <div class="grid-list" style="margin-top:14px">
+    <div class="prod"><div class="name">Gross Revenue</div><div class="meta">Rs. {{ stats.gross_revenue }}</div></div>
+    <div class="prod"><div class="name">Net Profit</div><div class="meta">Rs. {{ stats.net_profit }}</div></div>
+    <div class="prod"><div class="name">Receivables</div><div class="meta">Rs. {{ stats.total_receivables }}</div></div>
+    <div class="prod"><div class="name">Low Stock</div><div class="meta">{{ low_stock_items|length }} items</div></div>
+  </div>
+
+  {% if top_products %}
+    <div class="section-header">Top Selling Products</div>
+    <div class="grid-list">
+      {% for product in top_products %}
+        <div class="prod"><div class="name">{{ product.product_name }}</div><div class="meta">Sold {{ product.total_qty }} units • Rs. {{ product.total_revenue }}</div></div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if class_sales %}
+    <div class="section-header">Top Classes</div>
+    <div class="grid-list">
+      {% for cls in class_sales %}
+        <div class="prod"><div class="name">{{ cls.student_class or 'Class' }}</div><div class="meta">Sales: Rs. {{ cls.revenue }} • Orders {{ cls.volume }}</div></div>
+      {% endfor %}
+    </div>
+  {% endif %}
 {% endblock %}

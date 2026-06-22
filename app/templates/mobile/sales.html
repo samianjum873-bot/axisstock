@@ -3,16 +3,40 @@
 {% block title %}Sales - AxisStock Mobile{% endblock %}
 
 {% block page_content %}
-  <h3 style="font-weight:800;font-size:16px">Recent Sales</h3>
-  <div id="salesList" style="margin-top:12px">Loading...</div>
+  <div class="card-block">
+    <div class="page-title">Sales History</div>
+    <div class="page-subtitle">Review the latest transactions at a glance.</div>
+  </div>
+
+  <div id="salesList" class="grid-list" style="margin-top:14px">Loading...</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 async function loadSales(){
-  try{ const res = await fetch('/api/sales-recent'); const data = await res.json(); renderSales(data); }
-  catch(e){ document.getElementById('salesList').innerHTML = '<div class="empty-state">Failed to load</div>' }
+  try{
+    const res = await fetch('/api/sales-recent');
+    const data = await res.json();
+    renderSales(data);
+  }catch(e){
+    document.getElementById('salesList').innerHTML = '<div class="empty-state">Failed to load sales</div>';
+  }
 }
-function renderSales(list){ if(!list.length) return document.getElementById('salesList').innerHTML='<div class="empty-state">No recent sales</div>'; document.getElementById('salesList').innerHTML=list.map(s=>`<div class="prod"><div class="name">${s.receipt_number}</div><div class="meta">Rs. ${s.total_amount} • ${s.payment_status}</div><div style="font-size:12px;color:var(--muted);margin-top:6px">${s.timestamp}</div></div>`).join('') }
+function renderSales(list){
+  if(!list.length){
+    document.getElementById('salesList').innerHTML = '<div class="empty-state">No recent sales</div>';
+    return;
+  }
+  document.getElementById('salesList').innerHTML = list.map(s => `
+    <div class="prod">
+      <div class="card-row">
+        <div class="name">${s.receipt_number}</div>
+        <span class="status-pill">${s.payment_status}</span>
+      </div>
+      <div class="meta">Rs. ${s.total_amount} • ${s.student_name || 'Customer'}</div>
+      <div class="meta" style="font-size:12px">${s.timestamp}</div>
+    </div>
+  `).join('');
+}
 document.addEventListener('DOMContentLoaded', loadSales);
 </script>

@@ -3,15 +3,25 @@
 {% block title %}Customers - AxisStock Mobile{% endblock %}
 
 {% block page_content %}
-  <h3 style="font-weight:800;font-size:16px">Customers</h3>
-  <div id="custList" style="margin-top:12px">Loading...</div>
-{% endblock %}
+  <div class="card-block">
+    <div class="page-title">Customer Database</div>
+    <div class="page-subtitle">Search and review recent student purchases.</div>
+  </div>
 
-{% block scripts %}
-<script>
-async function loadCustomers(){
-  try{ const res = await fetch(window.location.href); const html = await res.text(); document.getElementById('custList').innerHTML = '<div class="empty-state">Open customers in desktop for full profile</div>'; }
-  catch(e){ document.getElementById('custList').innerHTML = '<div class="empty-state">Failed to load</div>' }
-}
-document.addEventListener('DOMContentLoaded', loadCustomers);
-</script>
+  {% if customers %}
+    <div class="grid-list" style="margin-top:14px">
+      {% for customer in customers %}
+        <a class="prod" href="/customers/profile/{{ customer.cnic }}">
+          <div class="name">{{ customer.student_name }}</div>
+          <div class="meta">Class {{ customer.student_class }} • {{ customer.phone_no }}</div>
+          <div class="card-row" style="margin-top:8px;gap:10px;">
+            <div class="card-meta">Orders: {{ customer.total_orders }}</div>
+            <div class="status-pill">Spent Rs. {{ customer.total_spent }}</div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">No customers found in this tenant.</div>
+  {% endif %}
+{% endblock %}

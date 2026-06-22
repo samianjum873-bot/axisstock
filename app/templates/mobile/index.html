@@ -3,10 +3,17 @@
 {% block title %}AxisStock Mobile Home{% endblock %}
 
 {% block page_content %}
-  <h3 style="font-weight:800;font-size:18px">Welcome</h3>
-  <div style="margin-top:12px">
-    <div class="prod"><div class="name">POS</div><div class="meta">Quick billing</div></div>
-    <div class="prod" style="margin-top:8px"><div class="name">Inventory</div><div class="meta">Manage stock</div></div>
-    <div class="prod" style="margin-top:8px"><div class="name">Sales</div><div class="meta">Recent sales</div></div>
+  <div class="card">
+    <div class="page-title">AxisStock Mobile</div>
+    <div class="page-subtitle">A clean mobile interface for billing, inventory, sales, customer profiles and insights.</div>
+  </div>
+
+  <div class="section-header">Start here</div>
+  <div class="grid-list">
+    <a href="/pos" class="prod"><div class="name">Counter Billing</div><div class="meta">Tap to create a new sale quickly.</div></a>
+    <a href="/inventory" class="prod"><div class="name">Stock Manager</div><div class="meta">Search and adjust product inventory.</div></a>
+    <a href="/sales" class="prod"><div class="name">Sales History</div><div class="meta">Review recent transactions.</div></a>
+    <a href="/customers" class="prod"><div class="name">Customer Database</div><div class="meta">Find students and order history.</div></a>
+    <a href="/analytics" class="prod"><div class="name">Reports & Analytics</div><div class="meta">Sales, stock and profit metrics.</div></a>
   </div>
 {% endblock %}

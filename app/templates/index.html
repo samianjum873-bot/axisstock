@@ -9,6 +9,20 @@
     <style>
         .sidebar-link.active { background-color: rgb(30 27 75); }
         .hidden-field { display: none !important; }
+        @media (max-width: 768px) {
+            body { overflow-x: hidden; }
+            aside { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 80%); max-width: 320px; transform: translateX(-100%); transition: transform 0.25s ease, box-shadow 0.25s ease; z-index: 50; }
+            body.sidebar-open aside { transform: translateX(0); }
+            .sidebar-backdrop { display: block; position: fixed; inset: 0; background: rgba(15,23,42,0.5); opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 45; }
+            body.sidebar-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+            .sidebar-link { padding: 1rem 1rem; }
+            .sidebar-link i { width: 2rem; }
+            .main-wrapper { flex: 1 1 auto; min-width: 0; overflow:hidden; }
+            .content-frame { padding-left: 0; }
+            .mobile-menu-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; border: 1px solid rgba(148,163,184,0.25); background: white; color: #0f172a; }
+            .mobile-menu-button:hover { background: #f1f5f9; }
+            header .flex.items-center.space-x-4 { gap: 0.75rem; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 font-sans flex h-screen overflow-hidden">
@@ -43,13 +57,19 @@
             </a>
         </div>
     </aside>
+    <div class="sidebar-backdrop hidden" onclick="toggleSidebar(false)"></div>
 
     <!-- Main Core App Wrapper -->
-    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <div class="main-wrapper flex-1 flex flex-col min-w-0 overflow-hidden content-frame">
         
         <!-- App Dynamic Header -->
         <header class="h-16 bg-white border-b flex items-center justify-between px-8 shadow-sm">
-            <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight" id="headerTitle">{% block header_title %}Counter Billing Terminal{% endblock %}</h2>
+            <div class="flex items-center gap-3">
+                <button class="mobile-menu-button hidden md:inline-flex" onclick="toggleSidebar(true)">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight" id="headerTitle">{% block header_title %}Counter Billing Terminal{% endblock %}</h2>
+            </div>
             <div class="flex items-center space-x-4">
                 {% block header_actions %}
                     {% if active_page == 'pos' %}
