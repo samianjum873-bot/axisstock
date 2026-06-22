@@ -160,6 +160,9 @@ async def create_tenant_schema(schema_name: str, admin_username: str, admin_pass
 async def tenant_exists(subdomain: str) -> bool:
     global pool
     if pool is None:
-        await init_db_pool()
+        try:
+            await init_db_pool()
+        except Exception:
+            return False
     async with pool.acquire() as conn:
         return await conn.fetchval("SELECT 1 FROM public.schools WHERE subdomain = $1", subdomain) is not None

@@ -133,8 +133,8 @@ def _smart_template_response(*args, **kwargs):
 templates.TemplateResponse = _smart_template_response
 
 def get_tenant_conn(request: Request):
-    if not hasattr(request.state, "db_conn"):
-        raise HTTPException(status_code=500, detail="Database connection not available")
+    if not hasattr(request.state, "db_conn") or request.state.db_conn is None:
+        raise HTTPException(status_code=503, detail="Database not configured")
     return request.state.db_conn
 
 
