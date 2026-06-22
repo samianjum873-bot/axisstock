@@ -1,0 +1,21 @@
+{% extends "mobile/base.html" %}
+
+{% block title %}Product - AxisStock Mobile{% endblock %}
+
+{% block page_content %}
+  <h3 style="font-weight:800;font-size:16px">{{ product.name }}</h3>
+  <div style="margin-top:10px;background:white;padding:12px;border-radius:12px">
+    <div style="font-weight:800">Rs. {{ product.selling_price }}</div>
+    <div style="color:var(--muted);font-size:13px;margin-top:6px">SKU: {{ product.sku }} • Stock: {{ product.stock }}</div>
+    <div style="margin-top:8px;color:var(--muted);font-size:13px">Category: {{ product.category }}</div>
+  </div>
+
+  <div style="margin-top:12px">
+    <h4 style="font-weight:800">Recent Sales</h4>
+    {% for s in sales %}
+      <div class="prod" style="margin-top:8px"><div class="name">{{ s.receipt_number }}</div><div class="meta">Rs. {{ s.price }} • {{ s.timestamp }}</div></div>
+    {% else %}
+      <div class="empty-state">No recent sales</div>
+    {% endfor %}
+  </div>
+{% endblock %}

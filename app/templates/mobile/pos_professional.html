@@ -1,0 +1,93 @@
+{% extends "mobile/base.html" %}
+
+{% block title %}POS - AxisStock Mobile{% endblock %}
+
+{% block header_actions %}
+  <button onclick="refreshData()" style="background:var(--brand);color:white;padding:8px 10px;border-radius:8px;font-weight:800;font-size:12px">Refresh</button>
+{% endblock %}
+
+{% block page_content %}
+  <div>
+    <div style="margin-bottom:10px">
+      <input id="mSearch" placeholder="Search products..." class="search-box" oninput="renderProducts()">
+    </div>
+
+    <div id="prodList" class="prod-list">
+      <div class="empty-state">Loading products...</div>
+    </div>
+  </div>
+
+  <div id="cartBar" class="cart-bar" style="display:none">
+    <div>
+      <div id="cartSummary" style="font-weight:800">0 items • Rs. 0</div>
+    </div>
+    <div>
+      <button onclick="gotoCheckout()">Checkout</button>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let products = [];
+let cart = [];
+
+async function refreshData(){
+  await loadProducts();
+}
+
+async function loadProducts(){
+  try{
+    const res = await fetch('/api/inventory');
+    products = await res.json();
+    renderProducts();
+  }catch(e){
+    document.getElementById('prodList').innerHTML = '<div class="empty-state">Failed to load products</div>';
+  }
+}
+
+function renderProducts(){
+  const q = document.getElementById('mSearch')?.value?.toLowerCase() || '';
+  const list = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q)));
+  if(list.length === 0){
+    document.getElementById('prodList').innerHTML = '<div class="empty-state">No products found</div>';
+    return;
+  }
+  document.getElementById('prodList').innerHTML = list.map(p => `\
+    <div class="prod">\
+      <div class="name">${p.name}</div>\
+      <div class="meta">${p.category || ''} • SKU: ${p.sku}</div>\
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">\
+        <div style="font-weight:800">Rs. ${p.selling_price}</div>\
+        <button onclick="addToCart(${p.id}, '${p.name.replace(/'/g,\\"\\'\\")}', ${p.selling_price})" style="background:var(--brand);color:white;border:none;padding:6px 8px;border-radius:8px;font-weight:800">Add</button>\
+      </div>\
+    </div>`).join('');
+}
+
+function addToCart(id, name, price){
+  const ex = cart.find(i=>i.id===id);
+  if(ex) ex.qty++;
+  else cart.push({id,name,price,qty:1});
+  updateCartUI();
+}
+
+function updateCartUI(){
+  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const items = cart.reduce((s,i)=>s+i.qty,0);
+  if(items>0){
+    document.getElementById('cartBar').style.display='flex';
+    document.getElementById('cartSummary').textContent = items + ' items • Rs. ' + total;
+  } else {
+    document.getElementById('cartBar').style.display='none';
+  }
+}
+
+function gotoCheckout(){
+  // For now, navigate to desktop checkout modal (keeps backend unchanged)
+  window.location.href = '/';
+}
+
+document.addEventListener('DOMContentLoaded', refreshData);
+</script>
+{% endblock %}

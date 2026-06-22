@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+from jinja2 import TemplateNotFound
 
 from app.database import init_db_pool, get_pool, create_tenant_schema, tenant_exists
 from app.middleware import TenantMiddleware
@@ -37,29 +38,34 @@ async def migrate_existing_tenants():
             await conn.execute('SET search_path TO public')
 
 async def lifespan(app: FastAPI):
-    await init_db_pool()
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute("""
-            CREATE SCHEMA IF NOT EXISTS public;
-            CREATE TABLE IF NOT EXISTS public.schools (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                subdomain TEXT UNIQUE NOT NULL,
-                admin_username TEXT NOT NULL,
-                admin_password TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT NOW()
-            );
-        """)
-        demo_exists = await conn.fetchval("SELECT 1 FROM public.schools WHERE subdomain = 'demo'")
-        if not demo_exists:
-            await conn.execute(
-                "INSERT INTO public.schools (name, subdomain, admin_username, admin_password) VALUES ($1, $2, $3, $4)",
-                "Demo School", "demo", "admin", "admin"
-            )
-            await create_tenant_schema("demo", "admin", "admin")
-    yield
-    await pool.close()
+    # Try to initialize DB pool, but allow running without DATABASE_URL for UI testing
+    try:
+        await init_db_pool()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                CREATE SCHEMA IF NOT EXISTS public;
+                CREATE TABLE IF NOT EXISTS public.schools (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    subdomain TEXT UNIQUE NOT NULL,
+                    admin_username TEXT NOT NULL,
+                    admin_password TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            demo_exists = await conn.fetchval("SELECT 1 FROM public.schools WHERE subdomain = 'demo'")
+            if not demo_exists:
+                await conn.execute(
+                    "INSERT INTO public.schools (name, subdomain, admin_username, admin_password) VALUES ($1, $2, $3, $4)",
+                    "Demo School", "demo", "admin", "admin"
+                )
+                await create_tenant_schema("demo", "admin", "admin")
+        yield
+        await pool.close()
+    except Exception:
+        # Skip DB setup when DATABASE_URL is not provided; allow UI-only testing
+        yield
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(TenantMiddleware)
@@ -67,6 +73,64 @@ app.add_middleware(SessionMiddleware, secret_key="change-this-secret-key-in-prod
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
+
+# Smart TemplateResponse wrapper: if request.state.is_mobile is True
+# prefer templates under `mobile/...` when available, otherwise fall back.
+orig_template_response = templates.TemplateResponse
+
+def _smart_template_response(*args, **kwargs):
+    request = None
+    name = None
+    context = None
+
+    # Detect calling style: some code calls `templates.TemplateResponse(request, name, context)`
+    if len(args) >= 1 and isinstance(args[0], Request):
+        request = args[0]
+        if len(args) >= 2:
+            name = args[1]
+        if len(args) >= 3:
+            context = args[2]
+    else:
+        if len(args) >= 1:
+            name = args[0]
+        if len(args) >= 2:
+            context = args[1]
+        # try to obtain request from context mapping
+        if isinstance(context, dict):
+            request = context.get('request')
+
+    if not name:
+        return orig_template_response(*args, **kwargs)
+
+    chosen = name
+    try:
+        if request and getattr(request.state, 'is_mobile', False):
+            mobile_name = f"mobile/{name}"
+            try:
+                templates.env.get_template(mobile_name)
+                chosen = mobile_name
+            except TemplateNotFound:
+                chosen = name
+    except Exception:
+        chosen = name
+
+    # Rebuild args replacing the template name with chosen
+    new_args = list(args)
+    if len(args) >= 1 and isinstance(args[0], Request):
+        if len(new_args) >= 2:
+            new_args[1] = chosen
+        else:
+            new_args.insert(1, chosen)
+    else:
+        if len(new_args) >= 1:
+            new_args[0] = chosen
+        else:
+            new_args.insert(0, chosen)
+
+    return orig_template_response(*new_args, **kwargs)
+
+# Patch the templates object in-place so existing callsites keep working
+templates.TemplateResponse = _smart_template_response
 
 def get_tenant_conn(request: Request):
     if not hasattr(request.state, "db_conn"):

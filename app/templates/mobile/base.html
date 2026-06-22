@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <title>{% block title %}AxisStock Mobile{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/mobile.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="mobile-container">
+    <header class="mobile-header">
+      <div class="brand">AxisStock</div>
+      <div class="actions">{% block header_actions %}{% endblock %}</div>
+    </header>
+
+    <main>
+      {% block page_content %}{% endblock %}
+    </main>
+  </div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,25 @@
+/* Mobile-specific professional UI styles */
+:root{
+  --brand:#4f46e5;
+  --accent:#10b981;
+  --muted:#6b7280;
+}
+html,body{height:100%;}
+body{font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:#f8fafc; color:#0f172a; -webkit-font-smoothing:antialiased}
+a{color:var(--brand); text-decoration:none}
+.mobile-container{max-width:720px;margin:0 auto;padding:14px}
+.mobile-header{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
+.brand{font-weight:800;color:var(--brand);letter-spacing:0.3px}
+.search-box{width:100%;padding:10px;border-radius:10px;border:1px solid #e6edf6;background:white}
+.prod-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.prod{background:white;padding:10px;border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,0.04);display:flex;flex-direction:column;gap:6px}
+.prod .name{font-weight:700;font-size:14px}
+.prod .meta{font-size:11px;color:var(--muted)}
+.cart-bar{position:fixed;left:12px;right:12px;bottom:12px;background:linear-gradient(90deg,var(--brand),#3730a3);color:white;padding:12px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 18px rgba(15,23,42,0.12)}
+.cart-bar button{background:var(--accent);border:none;color:white;padding:10px 12px;border-radius:10px;font-weight:800}
+.empty-state{text-align:center;color:var(--muted);padding:28px}
+
+@media(min-width:720px){
+  .mobile-container{padding:22px}
+  .prod-list{grid-template-columns:repeat(2,1fr)}
+}
